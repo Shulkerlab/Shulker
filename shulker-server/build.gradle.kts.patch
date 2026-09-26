@@ -1,0 +1,105 @@
+--- a/paper-server/build.gradle.kts
++++ b/paper-server/build.gradle.kts
+@@ -22,9 +_,18 @@
+     minecraftVersion = providers.gradleProperty("mcVersion")
+     gitFilePatches = false
+ 
+-    updatingMinecraft {
+-        // oldPaperCommit = "d4fe85375af18bfa88f44d7c1e6a61904ae550cc"
++    // Shulker start - Rebrand
++    val shulker = forks.register("shulker") {
++        upstream.patchDir("paperServer") {
++            upstreamPath = "paper-server"
++            excludes = setOf("src/minecraft", "patches", "build.gradle.kts")
++            patchesDir = rootDirectory.dir("shulker-server/paper-patches")
++            outputDir = rootDirectory.dir("paper-server")
++        }
+     }
++
++    activeFork = shulker
++    // Shulker end - Rebrand
+ }
+ 
+ tasks.generateDevelopmentBundle {
+@@ -86,7 +_,21 @@
+     }
+ }
+ 
+-val log4jPlugins = sourceSets.create("log4jPlugins")
++// Shulker start - Rebrand
++sourceSets {
++    main {
++        java { srcDir("../paper-server/src/main/java") }
++        resources { srcDir("../paper-server/src/main/resources") }
++    }
++    test {
++        java { srcDir("../paper-server/src/test/java") }
++        resources { srcDir("../paper-server/src/test/resources") }
++    }
++}
++val log4jPlugins = sourceSets.create("log4jPlugins") {
++    java { srcDir("../paper-server/src/log4jPlugins/java") }
++}
++// Shulker end - Rebrand
+ configurations.named(log4jPlugins.compileClasspathConfigurationName) {
+     extendsFrom(configurations.compileClasspath.get())
+ }
+@@ -109,7 +_,7 @@
+ }
+ 
+ dependencies {
+-    implementation(project(":paper-api"))
++    implementation(project(":shulker-api")) // Shulker
+     implementation("ca.spottedleaf:leafpile:1.2.0")
+     implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
+     implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21
+@@ -171,14 +_,14 @@
+         val gitBranch = git.exec(providers, "rev-parse", "--abbrev-ref", "HEAD").get().trim()
+         attributes(
+             "Main-Class" to "org.bukkit.craftbukkit.Main",
+-            "Implementation-Title" to "Paper",
++            "Implementation-Title" to "Shulker", // Shulker
+             "Implementation-Version" to implementationVersion,
+             "Implementation-Vendor" to date,
+-            "Specification-Title" to "Paper",
++            "Specification-Title" to "Shulker", // Shulker
+             "Specification-Version" to project.version,
+-            "Specification-Vendor" to "Paper Team",
+-            "Brand-Id" to "papermc:paper",
+-            "Brand-Name" to "Paper",
++            "Specification-Vendor" to "Shulker Team", // Shulker
++            "Brand-Id" to "shulker:shulker", // Shulker
++            "Brand-Name" to "Shulker", // Shulker
+             "Build-Number" to (build ?: ""),
+             "Build-Time" to buildTime.toString(),
+             "Git-Branch" to gitBranch,
+@@ -246,7 +_,7 @@
+     jvmArgumentProviders.add(provider)
+ }
+ 
+-val generatedDir: java.nio.file.Path = layout.projectDirectory.dir("src/generated/java").asFile.toPath()
++val generatedDir: java.nio.file.Path = rootProject.layout.projectDirectory.dir("paper-server/src/generated/java").asFile.toPath() // Shulker
+ idea {
+     module {
+         generatedSourceDirs.add(generatedDir.toFile())
+@@ -325,20 +_,4 @@
+     classpath(tasks.createPaperclipJar.flatMap { it.outputZip })
+     mainClass.set(null as String?)
+ }
+ 
+-fill {
+-    project("paper")
+-    versionFamily(paperweight.minecraftVersion.map { it.split(".", "-").takeWhile { part -> part.toIntOrNull() != null }.take(2).joinToString(".") })
+-    version(paperweight.minecraftVersion)
+-
+-    build {
+-        channel = providers.gradleProperty("channel").map { BuildChannel.valueOf(it.uppercase()) }
+-
+-        downloads {
+-            register("server:default") {
+-                file = tasks.createPaperclipJar.flatMap { it.outputZip }
+-                nameResolver.set { project, _, version, build -> "$project-$version-$build.jar" }
+-            }
+-        }
+-    }
+-}
