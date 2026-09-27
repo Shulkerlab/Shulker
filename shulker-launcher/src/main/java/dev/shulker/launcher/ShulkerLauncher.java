@@ -74,7 +74,8 @@ public final class ShulkerLauncher {
         command.addAll(jvmArgs);
         if (config.aotCache()) {
             final List<String> keyArgs = aotRelevant(jvmArgs);
-            command.addAll(new AotCache(shulkerDir, host, bundle, keyArgs).prepare(java, keyArgs, bootJar, workDir));
+            final boolean flightRecording = jvmArgs.stream().anyMatch(a -> a.startsWith("-XX:StartFlightRecording"));
+            command.addAll(new AotCache(shulkerDir, host, bundle, keyArgs).prepare(java, keyArgs, bootJar, workDir, flightRecording));
         }
         command.addAll(passthrough);
         command.add("-jar");

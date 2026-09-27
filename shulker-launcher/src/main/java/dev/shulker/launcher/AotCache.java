@@ -48,7 +48,7 @@ final class AotCache {
     }
 
     /** Returns the arguments to add to the server JVM, creating the cache first if possible. */
-    List<String> prepare(String java, List<String> cacheArgs, Path bootJar, Path workDir) {
+    List<String> prepare(String java, List<String> cacheArgs, Path bootJar, Path workDir, boolean flightRecording) {
         try {
             Files.createDirectories(dir);
             deleteStale();
@@ -61,6 +61,11 @@ final class AotCache {
                     return withLogging(List.of("-XX:AOTCache=" + cache()), workDir);
                 }
                 Files.deleteIfExists(configuration());
+            }
+            if (flightRecording) {
+                // The JVM turns JFR off while recording an AOT configuration.
+                Log.info("AOT cache: not recording this run because Java Flight Recorder is on");
+                return List.of();
             }
             Log.info("AOT cache: recording this run; startup gets faster after the next restart");
             return withLogging(List.of("-XX:AOTMode=record", "-XX:AOTConfiguration=" + configuration()), workDir);

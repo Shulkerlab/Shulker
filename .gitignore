@@ -65,3 +65,4 @@ manifest.mf
 test-plugin.settings.gradle.kts
 *.rej
 /run-smoke
+/run-bench
