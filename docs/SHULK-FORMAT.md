@@ -38,6 +38,17 @@ NBT). Sözlük bir grup region'dan eğitildi, başka region'larda test edildi (s
 Tahmini sonuç: `.mca`'ya göre yaklaşık **%46 daha küçük** (zstd-6 + sözlük, dolgusuz). Soğuk chunk'lar
 zstd-19'a yeniden sıkıştırılırsa yaklaşık %53.
 
+**Uygulamadan sonra ölçülen (aynı seed ve alan):**
+
+| | `.mca` | `.shulk` |
+|---|---|---|
+| Sunucunun kendisi yazdığı overworld region'ları (soğuk sıkıştırma kapalı) | 57.6 MiB | 34.4 MiB (−%40) |
+| Dönüştürücüyle çevrilen tüm dünya (region + entity + POI, tek seferde yazıldığı için boşluksuz) | 64.7 MiB | 33.0 MiB (−%49) |
+
+Sunucunun yazdığı dosyalarda fark, chunk'ların üretim sırasında birkaç kez yeniden yazılmasından kalan
+boşluklardan (compaction eşiğinin altında, ~%3.5) ve üretim sırasındaki tick'lerin chunk içeriğini biraz
+değiştirmesinden geliyor. 9754 chunk'ı dönüştürmek ~4 saniye sürüyor.
+
 ## 2. Dosya yapısı: `r.X.Z.shulk`
 
 Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
