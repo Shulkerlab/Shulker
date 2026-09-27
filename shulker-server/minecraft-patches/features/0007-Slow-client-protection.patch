@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Sun, 27 Sep 2026 05:01:29 +0300
+Subject: [PATCH] Slow client protection
+
+Disconnect connections whose outbound backlog exceeds a limit
+(shulker.yml network.slow-client-protection). A client that stops
+reading is dropped by the keep-alive timeout after 30 s, but until then
+the server keeps encoding packets for it into direct memory; with many
+such connections it runs out (OutOfDirectMemoryError), affecting every
+player.
+
+diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
+index 9fbc7e93712672dbab67f931e2aee447d803607b..7819f387474bbd706b97e74f14e1413601c9947e 100644
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -595,6 +595,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private static int joinAttemptsThisTick; // Paper - Buffer joins to world
+     private static int currTick; // Paper - Buffer joins to world
+     public void tick() {
++        dev.shulker.server.network.SlowClientGuard.check(this, this.channel); // Shulker - slow client protection
+         this.flushQueue();
+         // Paper start - Buffer joins to world
+         if (Connection.currTick != net.minecraft.server.MinecraftServer.currentTick) {

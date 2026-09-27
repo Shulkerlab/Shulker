@@ -28,6 +28,9 @@ public final class ShulkerConfig {
     // ---- network ---------------------------------------------------------------------------
     /** Use Linux io_uring for player connections when the kernel supports it. */
     public static boolean ioUring = true;
+    /** Disconnect clients that stop reading instead of buffering for them without limit. */
+    public static boolean slowClientProtection = true;
+    public static int slowClientMaxPendingMegabytes = 32;
 
     // ---- async pathfinding -----------------------------------------------------------------
     public static boolean asyncPathfinding = true;
@@ -53,6 +56,10 @@ public final class ShulkerConfig {
 
         ioUring = bool("network.io-uring", ioUring,
             "Use io_uring instead of epoll on Linux 5.10+ for fewer syscalls per packet.");
+        slowClientProtection = bool("network.slow-client-protection.enabled", slowClientProtection,
+            "Disconnect players whose connection cannot keep up, instead of buffering their data until the server runs out of memory.");
+        slowClientMaxPendingMegabytes = integer("network.slow-client-protection.max-pending-megabytes", slowClientMaxPendingMegabytes,
+            "Disconnect when this much data is waiting to be sent to one player. Clients that stop reading entirely are already dropped by the 30 s keep-alive timeout.");
 
         // Vanilla computes paths within the tick; the vanilla profile keeps that timing.
         asyncPathfinding = ShulkerProfile.current() != ShulkerProfile.VANILLA;

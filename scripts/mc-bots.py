@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Headless players for load tests (Minecraft 26.2, protocol 776, offline-mode servers).
 
-    mc-bots.py <count> <seconds> [host] [port] [radius]
+    mc-bots.py <count> <seconds> [host] [port] [radius] [stall]
 
 Each bot logs in, finishes configuration, answers keep-alives and teleports, accepts
 chunks, and walks randomly within <radius> blocks of 0,0 on a flat world. Prints how
-many bots reached the play state and exits non-zero if none did.
+many bots reached the play state and exits non-zero if none did. With "stall", bots stop
+reading once they are in the game, like a client on a dead link (tests slow-client protection).
 """
 import asyncio
 import math
@@ -100,6 +101,13 @@ class Bot:
         await self.configuration()
         self.playing = True
         self.stats["playing"] += 1
+        if self.stats["stall"]:
+            try:
+                while asyncio.get_running_loop().time() < until and not self.reader.at_eof():
+                    await asyncio.sleep(1)  # never read: the server's backlog for us only grows
+            finally:
+                self.writer.close()
+            return
         walker = asyncio.create_task(self.walk(until))
         try:
             await self.play(until)
@@ -228,14 +236,14 @@ async def main():
     host = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
     port = int(sys.argv[4]) if len(sys.argv) > 4 else 25565
     radius = float(sys.argv[5]) if len(sys.argv) > 5 else 40.0
-    stats = {"playing": 0, "kicked": 0, "errors": 0}
+    stats = {"playing": 0, "kicked": 0, "errors": 0, "stall": len(sys.argv) > 6 and sys.argv[6] == "stall"}
     loop = asyncio.get_running_loop()
     until = loop.time() + seconds
 
     async def one(i):
         await asyncio.sleep(i * 0.2)  # stagger logins
         try:
-            await Bot(f"bot{i:03d}", host, port, radius, stats).run(until)
+            await Bot(f"{'stall' if stats['stall'] else 'bot'}{i:03d}", host, port, radius, stats).run(until)
         except Exception as e:  # noqa: BLE001 - report and keep the others running
             stats["errors"] += 1
             if stats["errors"] <= 3:
