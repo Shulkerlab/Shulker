@@ -3,8 +3,11 @@
 #
 #   scripts/benchmark.sh [shulker.jar] [mob count] [work dir]
 #
-# Builds a flat, force-loaded, fenced arena, fills it with villagers, cows and sheep
-# (lots of AI and pathfinding), lets it warm up and reads Paper's /mspt.
+# Builds a flat, force-loaded, fenced arena, fills it with mobs, lets it warm up and
+# reads Paper's /mspt. BENCH_SCENARIO picks the load:
+#   villagers    (default) villagers, cows and sheep: brains, POI searches, wandering
+#   pathfinding  husks hunting villagers standing on pillars: unreachable targets make
+#                every mob search the whole path budget
 # Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations).
 # Running this accepts the Minecraft EULA for the throwaway server it creates.
 set -euo pipefail
@@ -15,6 +18,7 @@ mobs="${2:-1500}"
 work="$(realpath -m "${3:-$root/run-bench}")"
 port="${BENCH_PORT:-25598}"
 warmup=45
+scenario="${BENCH_SCENARIO:-villagers}"
 measure=60
 half=48 # arena is (2*half) blocks wide, centred on 0,0
 floor=-60 # surface of a default flat world
@@ -29,7 +33,7 @@ online-mode=false
 server-port=$port
 pause-when-empty-seconds=-1
 spawn-protection=0
-difficulty=peaceful
+difficulty=$([[ $scenario == pathfinding ]] && echo easy || echo peaceful)
 EOF
 # Activation range 0 = always active, so mobs tick fully without a player nearby.
 cat > spigot.yml <<EOF
@@ -79,17 +83,32 @@ for wall in \
 done
 sleep 3
 
+if [[ $scenario == pathfinding ]]; then
+    # Nine villagers on 6-block stone pillars (not Invulnerable: invulnerable mobs are never targeted) spread over the arena: visible, never reachable.
+    for cx in -32 0 32; do
+        for cz in -32 0 32; do
+            send "fill $cx $floor $cz $cx $((floor + 5)) $cz minecraft:stone"
+            send "summon minecraft:villager $cx $((floor + 6)) $cz {NoAI:1b,PersistenceRequired:1b}"
+        done
+    done
+    sleep 2
+fi
+
 # Spread mobs on a grid: half villagers (brains + pathfinding), rest cows and sheep.
 side=$(awk -v n="$mobs" 'BEGIN { s = int(sqrt(n)); if (s * s < n) s++; print s }')
 step=$(awk -v s="$side" -v h="$half" 'BEGIN { print (2 * h - 4) / s }')
 for ((n = 0; n < mobs; n++)); do
     x=$(awk -v n="$n" -v s="$side" -v st="$step" -v h="$half" 'BEGIN { printf "%.1f", -h + 2 + (n % s) * st }')
     z=$(awk -v n="$n" -v s="$side" -v st="$step" -v h="$half" 'BEGIN { printf "%.1f", -h + 2 + int(n / s) * st }')
-    case $((n % 4)) in
-        0|1) type=villager ;;
-        2) type=cow ;;
-        *) type=sheep ;;
-    esac
+    if [[ $scenario == pathfinding ]]; then
+        type=husk # husks do not burn in daylight
+    else
+        case $((n % 4)) in
+            0|1) type=villager ;;
+            2) type=cow ;;
+            *) type=sheep ;;
+        esac
+    fi
     send "summon minecraft:$type $x $floor $z"
 done
 

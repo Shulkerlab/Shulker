@@ -1,0 +1,127 @@
+/*
+ * Async pathfinding from Petal (https://github.com/Bloom-host/Petal) by peaches94,
+ * updated by Kaiiju (https://github.com/KaiijuMC/Kaiiju) and Leaf
+ * (https://github.com/Winds-Studio/Leaf). GPL-3.0-only.
+ */
+package dev.shulker.server.async.path;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import net.minecraft.util.Util;
+import net.minecraft.world.level.pathfinder.Path;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+/**
+ * used to handle the scheduling of async path processing
+ */
+@NullMarked
+public final class AsyncPathProcessor {
+
+    private static final String THREAD_PREFIX = "Shulker Async Pathfinding";
+    public static final Logger LOGGER = LogManager.getLogger(THREAD_PREFIX);
+    private static long lastWarnMillis = System.currentTimeMillis();
+    public static @Nullable ThreadPoolExecutor PATH_PROCESSING_EXECUTOR = null;
+
+    public static void init() {
+        if (PATH_PROCESSING_EXECUTOR == null) {
+            PATH_PROCESSING_EXECUTOR = new ThreadPoolExecutor(
+                getCorePoolSize(),
+                getMaxPoolSize(),
+                getKeepAliveTime(), TimeUnit.SECONDS,
+                getQueueImpl(),
+                getThreadFactory(),
+                getRejectedPolicy()
+            );
+        } else {
+            // Temp no-op
+            //throw new IllegalStateException();
+        }
+    }
+
+    static void queue(Runnable path) {
+        PATH_PROCESSING_EXECUTOR.execute(path);
+    }
+
+    /**
+     * takes a possibly unprocessed path, and waits until it is completed
+     * the consumer will be immediately invoked if the path is already processed
+     * the consumer will always be called on the main thread
+     *
+     * @param path            a path to wait on
+     * @param afterProcessing a consumer to be called
+     */
+    public static void awaitProcessing(@Nullable Path path, Consumer<@Nullable Path> afterProcessing) {
+        if (path != null && !path.isProcessed() && path instanceof AsyncPath asyncPath) {
+            asyncPath.schedulePostProcessing(afterProcessing); // Reduce double lambda allocation
+        } else {
+            afterProcessing.accept(path);
+        }
+    }
+
+    private static int getCorePoolSize() {
+        return 1;
+    }
+
+    private static int getMaxPoolSize() {
+        return AsyncPathfinding.asyncPathfindingMaxThreads;
+    }
+
+    private static long getKeepAliveTime() {
+        return AsyncPathfinding.asyncPathfindingKeepalive;
+    }
+
+    private static BlockingQueue<Runnable> getQueueImpl() {
+        final int queueCapacity = AsyncPathfinding.asyncPathfindingQueueSize;
+
+        return new LinkedBlockingQueue<>(queueCapacity);
+    }
+
+    private static ThreadFactory getThreadFactory() {
+        return new ThreadFactoryBuilder()
+            .setNameFormat(THREAD_PREFIX + " Thread - %d")
+            .setPriority(Thread.NORM_PRIORITY - 2)
+            .setUncaughtExceptionHandler(Util::onThreadException)
+            .build();
+    }
+
+    private static RejectedExecutionHandler getRejectedPolicy() {
+        return (Runnable rejectedTask, ThreadPoolExecutor executor) -> {
+            BlockingQueue<Runnable> workQueue = executor.getQueue();
+            if (!executor.isShutdown()) {
+                switch (AsyncPathfinding.asyncPathfindingRejectPolicy) {
+                    case FLUSH_ALL -> {
+                        if (!workQueue.isEmpty()) {
+                            List<Runnable> pendingTasks = new ArrayList<>(workQueue.size());
+
+                            workQueue.drainTo(pendingTasks);
+
+                            for (Runnable pendingTask : pendingTasks) {
+                                pendingTask.run();
+                            }
+                        }
+                        rejectedTask.run();
+                    }
+                    case CALLER_RUNS -> rejectedTask.run();
+                }
+            }
+
+            if (System.currentTimeMillis() - lastWarnMillis > 30000L) {
+                LOGGER.warn("Async pathfinding processor is busy! Pathfinding tasks will be treated as policy defined in config. Increasing async-pathfinding.threads in shulker.yml may help.");
+                lastWarnMillis = System.currentTimeMillis();
+            }
+        };
+    }
+}

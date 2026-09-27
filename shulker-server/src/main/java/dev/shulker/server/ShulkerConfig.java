@@ -33,8 +33,7 @@ public final class ShulkerConfig {
     public static boolean asyncPathfinding = true;
     public static int asyncPathfindingThreads = 0;
     public static int asyncPathfindingKeepAliveSeconds = 60;
-    /** What to do when the pathfinding queue is full: run on the tick thread, or drop. */
-    public static boolean asyncPathfindingRunOnMainWhenFull = true;
+    public static String asyncPathfindingRejectPolicy = "caller_runs";
     public static int asyncPathfindingQueueSize = 0;
 
     // ---- entity tracker --------------------------------------------------------------------
@@ -67,13 +66,15 @@ public final class ShulkerConfig {
             "Idle worker threads are stopped after this many seconds.");
         asyncPathfindingQueueSize = integer("async-pathfinding.queue-size", asyncPathfindingQueueSize,
             "Pending path requests before the queue is full (0 = threads x 256).");
-        asyncPathfindingRunOnMainWhenFull = bool("async-pathfinding.run-on-tick-thread-when-full", asyncPathfindingRunOnMainWhenFull,
-            "When the queue is full: true computes the path on the tick thread, false drops the request.");
+        asyncPathfindingRejectPolicy = string("async-pathfinding.reject-policy", asyncPathfindingRejectPolicy,
+            "When the queue is full: caller_runs computes the new path on the tick thread, flush_all computes every queued path there.");
 
         multithreadedTracker = bool("entity-tracker.multithreaded", multithreadedTracker,
             "Update which players see which entities on worker threads.");
         multithreadedTrackerThreads = integer("entity-tracker.threads", multithreadedTrackerThreads,
             "Worker threads (0 = a quarter of the CPU cores).");
+
+        dev.shulker.server.async.path.AsyncPathfinding.configure();
 
         try {
             config.save(file);
@@ -96,6 +97,14 @@ public final class ShulkerConfig {
         }
         config.setComments(path, List.of(comment));
         return config.getBoolean(path, def);
+    }
+
+    private static String string(final String path, final String def, final String comment) {
+        if (!config.isSet(path)) {
+            config.set(path, def);
+        }
+        config.setComments(path, List.of(comment));
+        return config.getString(path, def);
     }
 
     private static int integer(final String path, final int def, final String comment) {
