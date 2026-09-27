@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -76,7 +77,43 @@ public final class ShulkRegion implements Closeable {
         this.channel = channel;
     }
 
-    /** Opens the file, creating it with an empty header when it does not exist. */
+    /** Regions handed out by {@link #acquire}, keyed by absolute path. Guarded by itself. */
+    private static final Map<Path, ShulkRegion> SHARED = new HashMap<>();
+    private int holders; // guarded by SHARED
+
+    /**
+     * Returns the one open instance for this file, opening it if needed. Every caller must
+     * {@link #release} it. Two instances on one file would each track their own free space and
+     * overwrite each other's data, and the server can open the same region from several places
+     * (chunk storage, startup file fixers, upgraders).
+     */
+    public static ShulkRegion acquire(final Path path, final RegionKind kind, final boolean sync) throws IOException {
+        final Path key = path.toAbsolutePath().normalize();
+        synchronized (SHARED) {
+            ShulkRegion region = SHARED.get(key);
+            if (region == null) {
+                region = open(key, kind, sync);
+                SHARED.put(key, region);
+            }
+            region.holders++;
+            return region;
+        }
+    }
+
+    /** Gives up one {@link #acquire}; the last holder closes the file. */
+    public void release() throws IOException {
+        synchronized (SHARED) {
+            if (--this.holders > 0) {
+                return;
+            }
+            SHARED.remove(this.path);
+            // Closed while holding the lock: a concurrent acquire must not open the file while
+            // it is being compacted and replaced.
+            this.close();
+        }
+    }
+
+    /** Opens a private instance, for tools that own the file (converters, tests). */
     public static ShulkRegion open(final Path path, final RegionKind kind, final boolean sync) throws IOException {
         final FileChannel channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
         final ShulkRegion region = new ShulkRegion(path, kind, sync, channel);
@@ -397,11 +434,14 @@ public final class ShulkRegion implements Closeable {
             this.end += size;
             return position;
         }
-        this.gaps.remove(best.getKey());
-        if (best.getValue() > size) {
-            this.gaps.put(best.getKey() + size, best.getValue() - size);
+        // Copy before removing: TreeMap may reuse a removed entry object for its successor.
+        final long start = best.getKey();
+        final long length = best.getValue();
+        this.gaps.remove(start);
+        if (length > size) {
+            this.gaps.put(start + size, length - size);
         }
-        return best.getKey();
+        return start;
     }
 
     private void release(final long start, final long len) {

@@ -44,6 +44,11 @@ public final class ShulkerConfig {
     /** auto: new worlds .shulk, existing .mca worlds unchanged; shulk: migrate; mca: vanilla. */
     public static String storageFormat = "auto";
     public static int storageCompressionLevel = 6;
+    public static boolean coldRecompression = true;
+    public static int coldRecompressionLevel = 19;
+    public static int coldRecompressionAfterHours = 24;
+    public static int coldRecompressionChunksPerSecond = 20;
+    public static double coldRecompressionMaxMspt = 30.0;
 
     // ---- async pathfinding -----------------------------------------------------------------
     public static boolean asyncPathfinding = true;
@@ -93,6 +98,17 @@ public final class ShulkerConfig {
                 + "shulk: also migrate existing worlds, chunk by chunk as they are saved. mca: vanilla format for new region files.");
         storageCompressionLevel = integer("storage.compression-level", storageCompressionLevel,
             "zstd level for chunks as they are saved (1-19). 6 is smaller and faster than .mca's zlib.");
+        coldRecompression = bool("storage.cold-recompression.enabled", coldRecompression,
+            "Recompress chunks that were not saved for a while at a higher level in the background (about 13% smaller). "
+                + "Only regions the server has open are processed, one thread, low priority.");
+        coldRecompressionLevel = integer("storage.cold-recompression.level", coldRecompressionLevel,
+            "zstd level for cold chunks. Reading them is as fast as any other level.");
+        coldRecompressionAfterHours = integer("storage.cold-recompression.after-hours", coldRecompressionAfterHours,
+            "A chunk is cold when it has not been saved for this many hours.");
+        coldRecompressionChunksPerSecond = integer("storage.cold-recompression.chunks-per-second", coldRecompressionChunksPerSecond,
+            "Upper limit on background work; 20 uses roughly 15% of one CPU core.");
+        coldRecompressionMaxMspt = dbl("storage.cold-recompression.max-mspt", coldRecompressionMaxMspt,
+            "Pause while the server's average tick time is above this many milliseconds.");
 
         // Vanilla computes paths within the tick; the vanilla profile keeps that timing.
         asyncPathfinding = ShulkerProfile.current() != ShulkerProfile.VANILLA;
@@ -138,6 +154,14 @@ public final class ShulkerConfig {
         }
         config.setComments(path, List.of(comment));
         return config.getString(path, def);
+    }
+
+    private static double dbl(final String path, final double def, final String comment) {
+        if (!config.isSet(path)) {
+            config.set(path, def);
+        }
+        config.setComments(path, List.of(comment));
+        return config.getDouble(path, def);
     }
 
     private static int integer(final String path, final int def, final String comment) {

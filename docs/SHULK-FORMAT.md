@@ -64,8 +64,10 @@ Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
 - **zstd-jni** (Leaf/Luminol'ün de kullandığı, tüm platformların native'lerini içeren kütüphane).
   Sistem `libzstd`'sine FFM ile bağlanmak daha "modern" olurdu ama sunucularda kurulu olmayabiliyor.
 - **Varsayılan:** zstd-6 + yerleşik sözlük.
-- **Soğuk chunk'lar:** belli bir süredir değişmeyen chunk'lar sunucu boşta iken arka planda zstd-19'a
-  yeniden sıkıştırılır (hız sınırlı, ana thread'e dokunmaz).
+- **Soğuk chunk'lar:** 24 saattir kaydedilmemiş chunk'lar, MSPT 30 ms'nin altındayken tek bir düşük
+  öncelikli thread'de, saniyede en fazla 20 chunk olacak şekilde zstd-19'a yeniden sıkıştırılır.
+  Yalnızca sunucunun o anda açık tuttuğu region'lar işlenir (dosyayı ikinci kez açmamak için). Oyuncular
+  dolaştıkça zamanla tüm dünya kapsanır.
 - **Sözlükler:** her Minecraft sürümü için üretilmiş dünyalardan eğitilir ve jar'a gömülür (~110 KiB).
   Her chunk kendi sözlük kimliğini taşıdığı için eski sözlükler hep jar'da kalır. Eski dosyalar her zaman
   okunabilir, farklı sürümlerle yazılmış chunk'lar aynı dosyada karışık durabilir.
@@ -78,15 +80,37 @@ Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
 - Gereken yamalar yalnızca eklemeli: `RegionFile`'a korumalı bir constructor ve bir metottan `final`'ın
   kaldırılması.
 - Chunk, entity ve POI depoları aynı sınıftan geçtiği için üçü de `.shulk` olur.
+- **Dosya başına tek nesne:** Sunucu aynı region dosyasını birden fazla yerden açabiliyor (chunk deposu,
+  başlangıçtaki dosya düzelticiler, upgrader). Her `.shulk` dosyası için paylaşılan tek bir `ShulkRegion`
+  tutuluyor (referans sayımlı). İki ayrı nesne, iki ayrı boş alan listesiyle birbirinin verisinin
+  üzerine yazardı.
 
 ## 5. Geçiş ve dış araçlar
 
 - **Kademeli geçiş:** Bir chunk `.shulk`'ta yoksa `.mca`'dan okunur ve bir sonraki kayıtta `.shulk`'a
   yazılır. Eski dünya ilk açılışta dönüştürülmeyi beklemeden çalışır, zamanla kendiliğinden geçer.
-- **Tam dönüştürme:** `java -jar shulker.jar --convert-world=<dünya> --to=shulk|mca` (sunucu kapalıyken).
+- **Tam dönüştürme:** `java -jar shulker.jar --convert-world=<dünya> --to=shulk|mca` (sunucu kapalıyken;
+  açıksa `session.lock` yüzünden reddeder). Her region yazılır, geri okunup bayt bayt karşılaştırılır,
+  ancak ondan sonra kaynak dosya silinir.
+- **Bütünlük kontrolü:** `java -jar shulker.jar --verify-world=<dünya>` her `.shulk` chunk'ını açıp
+  zstd sağlama toplamını doğrular.
 - **Dış araçlar:** BlueMap, MCA Selector, Chunky'nin harita araçları gibi region dosyalarını doğrudan
   okuyan araçlar `.shulk`'u okuyamaz. `--to=mca` ile geri dönüştürme her zaman mümkün olacak.
   Eklentiler Bukkit/Paper API'si üzerinden çalıştığı için etkilenmez.
+- **Bilinen sınırlama:** Vanilla'nın `--forceUpgrade` / "Optimize World" özelliği yalnızca `.mca`
+  dosyalarını tarar. `.shulk` dünyalarda chunk'lar, vanilla'da da olduğu gibi yüklendikçe yeni sürüme
+  yükseltilir.
+
+## 7. Test
+
+- `shulker-format` birim testleri: gidiş-dönüş, yeniden açma, boşluk yeniden kullanımı, compaction,
+  bozuk girdi/veri, yarım kalmış yazma, eşzamanlı yazma + okuma + yeniden sıkıştırma stres testi,
+  dönüştürücü.
+- `scripts/world-format-test.sh`: gerçek sunucuyla `.mca` dünya → yerinde geçiş (soğuk sıkıştırma
+  zorla açık) → yeniden başlatma → `.mca`'ya ve geri dönüştürme → yeni `.shulk` dünya. Her adım
+  işaret bloklarını ve `--verify-world` ile tüm chunk'ları kontrol eder.
+- Bu test, ilk sürümde boş alan yönetimindeki bir hatayı (TreeMap girdisi silinince ardılın
+  değerlerini taşıyordu) yakaladı: yoğun yazmada canlı chunk'ların üzerine yazılıyordu.
 
 ## 6. Kararlar (onaylandı)
 

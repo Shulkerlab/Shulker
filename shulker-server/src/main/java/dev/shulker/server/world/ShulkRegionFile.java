@@ -39,6 +39,7 @@ public final class ShulkRegionFile extends RegionFile {
     private @Nullable ShulkRegion region;
     private @Nullable RegionFile legacy;
     private final @Nullable Path legacyPath;
+    private boolean closed;
 
     ShulkRegionFile(final RegionStorageInfo info, final Path path, final int regionX, final int regionZ,
                     final boolean sync, final @Nullable RegionFile legacy, final @Nullable Path legacyPath) throws IOException {
@@ -51,11 +52,12 @@ public final class ShulkRegionFile extends RegionFile {
         this.legacy = legacy;
         this.legacyPath = legacyPath;
         if (Files.exists(path)) {
-            this.region = ShulkRegion.open(path, this.kind, sync);
+            this.region = ShulkRegion.acquire(path, this.kind, sync);
             if (this.region.damagedEntries() > 0) {
                 LOGGER.error("{}: {} damaged chunk entries were skipped", path, this.region.damagedEntries());
             }
         }
+        ColdStorage.opened(this);
     }
 
     private static int index(final ChunkPos pos) {
@@ -63,9 +65,12 @@ public final class ShulkRegionFile extends RegionFile {
     }
 
     private ShulkRegion region() throws IOException {
+        if (this.closed) {
+            throw new IOException(this.path + " is closed"); // never silently re-acquire a released region
+        }
         if (this.region == null) {
             // Created on first write, so reading a not yet migrated region leaves no empty file.
-            this.region = ShulkRegion.open(this.path, this.kind, this.sync);
+            this.region = ShulkRegion.acquire(this.path, this.kind, this.sync);
         }
         return this.region;
     }
@@ -179,9 +184,15 @@ public final class ShulkRegionFile extends RegionFile {
 
     @Override
     public synchronized void close() throws IOException {
+        if (this.closed) {
+            return;
+        }
+        this.closed = true;
+        ColdStorage.closed(this);
         try {
             if (this.region != null) {
-                this.region.close();
+                this.region.release();
+                this.region = null;
             }
         } finally {
             if (this.legacy != null) {

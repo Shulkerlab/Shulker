@@ -47,6 +47,20 @@ line options `--profile=`, `--memory=` and `--gc=` override the file, and so do 
 - `--dry-run` prints the planned command without starting the server.
 - `--no-relaunch` (or `managed=false`) uses exactly the flags you pass to `java`.
 
+## World storage
+
+New worlds are stored as `.shulk` region files: per-chunk zstd with dictionaries trained on
+Minecraft data. They are about half the size of `.mca` and faster to read and write. Existing
+`.mca` worlds are left alone unless `storage.format: shulk` is set in `shulker.yml`; the world
+then migrates chunk by chunk as chunks are saved. See [docs/SHULK-FORMAT.md](docs/SHULK-FORMAT.md).
+
+```bash
+java -jar shulker-26.2.jar --convert-world=world --to=shulk   # or --to=mca, server stopped
+java -jar shulker-26.2.jar --verify-world=world               # read back every chunk
+```
+
+Tools that read region files directly (BlueMap, MCA Selector) need `.mca`: convert back first.
+
 ## Building
 
 ```bash

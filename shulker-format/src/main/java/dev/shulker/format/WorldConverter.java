@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 /**
  * Converts a whole world between {@code .mca} and {@code .shulk} while the server is stopped.
  *
- * <pre>java -cp .shulker/boot.jar dev.shulker.format.WorldConverter &lt;world dir&gt; shulk|mca</pre>
+ * <pre>java -cp .shulker/boot.jar dev.shulker.format.WorldConverter &lt;world dir&gt; shulk|mca|verify</pre>
  *
  * <p>Every region is written, read back and compared chunk by chunk before its source file is
  * deleted, so an interrupted run leaves both files and can simply be run again. When both
@@ -37,10 +37,16 @@ public final class WorldConverter {
 
     public static void main(final String[] args) throws IOException {
         if (args.length != 2) {
-            System.err.println("usage: WorldConverter <world dir> shulk|mca");
+            System.err.println("usage: WorldConverter <world dir> shulk|mca|verify");
             System.exit(2);
         }
         final Path world = Path.of(args[0]);
+        if (args[1].equalsIgnoreCase("verify")) {
+            final Verification check = verify(world);
+            System.out.printf(Locale.ROOT, "Checked %d .shulk regions, %d chunks: %d unreadable, %d damaged entries%n",
+                check.regions(), check.chunks(), check.unreadable(), check.damagedEntries());
+            System.exit(check.ok() ? 0 : 1);
+        }
         final Target target = Target.valueOf(args[1].toUpperCase(Locale.ROOT));
         final Result result = convert(world, target, System.out::println);
         System.out.printf(Locale.ROOT, "Converted %d regions, %d chunks: %.1f MiB -> %.1f MiB%n",
@@ -78,6 +84,40 @@ public final class WorldConverter {
             }
             return new Result(regions, chunks, before, after);
         }
+    }
+
+    public record Verification(int regions, int chunks, int unreadable, int damagedEntries) {
+        public boolean ok() {
+            return this.unreadable == 0 && this.damagedEntries == 0;
+        }
+    }
+
+    /** Decompresses every chunk of every .shulk region (checking each frame's checksum). */
+    public static Verification verify(final Path world) throws IOException {
+        final List<Path> files;
+        try (Stream<Path> walk = Files.walk(world, 8)) {
+            files = walk.filter(p -> isRegionFile(p, ShulkRegion.EXTENSION)).sorted().toList();
+        }
+        int chunks = 0;
+        int unreadable = 0;
+        int damaged = 0;
+        for (Path file : files) {
+            try (ShulkRegion region = ShulkRegion.open(file, kindOf(file), false)) {
+                damaged += region.damagedEntries();
+                for (int i = 0; i < ShulkRegion.CHUNKS; i++) {
+                    if (!region.has(i)) {
+                        continue;
+                    }
+                    chunks++;
+                    try {
+                        region.read(i);
+                    } catch (IOException | RuntimeException e) {
+                        unreadable++;
+                    }
+                }
+            }
+        }
+        return new Verification(files.size(), chunks, unreadable, damaged);
     }
 
     private static FileLock tryLock(final FileChannel channel) throws IOException {

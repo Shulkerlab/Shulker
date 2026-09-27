@@ -27,7 +27,7 @@ public final class ShulkerLauncher {
     public static void main(String[] args) throws Exception {
         final Path workDir = Path.of("").toAbsolutePath();
         final Path jar = ownJar();
-        if (jar != null && Arrays.stream(args).anyMatch(a -> a.startsWith("--convert-world="))) {
+        if (jar != null && Arrays.stream(args).anyMatch(a -> a.startsWith("--convert-world=") || a.startsWith("--verify-world="))) {
             System.exit(convertWorld(args, workDir, jar));
         }
         LauncherConfig config = LauncherConfig.load(workDir, args);
@@ -92,8 +92,8 @@ public final class ShulkerLauncher {
     // ---- world conversion ------------------------------------------------------------------
 
     /**
-     * {@code --convert-world=<dir> --to=shulk|mca}: converts a stopped world's region files
-     * with the server's own classes, then exits.
+     * {@code --convert-world=<dir> --to=shulk|mca} converts a stopped world's region files, and
+     * {@code --verify-world=<dir>} reads back every .shulk chunk, using the server's own classes.
      */
     private static int convertWorld(final String[] args, final Path workDir, final Path jar) throws Exception {
         String world = null;
@@ -101,12 +101,16 @@ public final class ShulkerLauncher {
         for (String arg : args) {
             if (arg.startsWith("--convert-world=")) {
                 world = arg.substring("--convert-world=".length());
+            } else if (arg.startsWith("--verify-world=")) {
+                world = arg.substring("--verify-world=".length());
+                target = "verify";
             } else if (arg.startsWith("--to=")) {
                 target = arg.substring("--to=".length());
             }
         }
-        if (world == null || world.isBlank() || !(target.equals("shulk") || target.equals("mca"))) {
+        if (world == null || world.isBlank() || !(target.equals("shulk") || target.equals("mca") || target.equals("verify"))) {
             Log.warn("Usage: java -jar shulker.jar --convert-world=<world folder> --to=shulk|mca");
+            Log.warn("       java -jar shulker.jar --verify-world=<world folder>");
             return 2;
         }
         final ServerBundle bundle = ServerBundle.read(jar, workDir);
@@ -117,7 +121,8 @@ public final class ShulkerLauncher {
             bundle.extract(java, marker);
         }
         final Path bootJar = bundle.writeBootJar(shulkerDir.resolve("boot.jar"));
-        Log.info("Converting " + world + " to ." + target + " (the server must be stopped)");
+        Log.info(target.equals("verify") ? "Checking every chunk of " + world
+            : "Converting " + world + " to ." + target + " (the server must be stopped)");
         return new ProcessBuilder(java, "-Xmx2G", "--enable-native-access=ALL-UNNAMED",
             "-cp", workDir.relativize(bootJar).toString(), "dev.shulker.format.WorldConverter", world, target)
             .directory(workDir.toFile())
