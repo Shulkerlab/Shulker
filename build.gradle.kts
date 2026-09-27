@@ -115,17 +115,14 @@ val createShulkerJar by tasks.registering(Jar::class) {
     isReproducibleFileOrder = true
 
     // Launcher classes first so its manifest wins.
-    from(launcherJar.flatMap { it.archiveFile }.map { zipTree(it) })
-    from(paperclip.map { zipTree(it.outputs.files.singleFile) }) {
+    from(zipTree(launcherJar.flatMap { it.archiveFile }))
+    from(zipTree(paperclip.map { it.outputs.files.singleFile })) {
         exclude("META-INF/MANIFEST.MF")
     }
     manifest {
         attributes(
             "Main-Class" to "dev.shulker.launcher.ShulkerLauncher",
-            "Paperclip-Main-Class" to "io.papermc.paperclip.Main",
-            "Launcher-Agent-Class" to "io.papermc.paperclip.Agent",
             "Enable-Native-Access" to "ALL-UNNAMED",
-            "Multi-Release" to "true",
         )
     }
 }

@@ -17,17 +17,29 @@ public enum Profile {
     /** Hub servers: few chunks, many players. Heap is capped and allowed to shrink. */
     LOBBY(6L << 30, true, true);
 
-    /** Upper bound for an automatically sized heap, 0 for none. */
-    final long autoHeapCap;
-    /** Prefer a concurrent (low-pause) collector at smaller heap sizes than usual. */
-    final boolean latencySensitive;
-    /** Start with a small heap and let the GC grow/uncommit it instead of reserving everything. */
-    final boolean elasticHeap;
+    private final long autoHeapCap;
+    private final boolean latencySensitive;
+    private final boolean elasticHeap;
 
     Profile(long autoHeapCap, boolean latencySensitive, boolean elasticHeap) {
         this.autoHeapCap = autoHeapCap;
         this.latencySensitive = latencySensitive;
         this.elasticHeap = elasticHeap;
+    }
+
+    /** Upper bound for an automatically sized heap, 0 for none. */
+    public long autoHeapCap() {
+        return autoHeapCap;
+    }
+
+    /** Prefer a concurrent (low-pause) collector at smaller heap sizes than usual. */
+    public boolean latencySensitive() {
+        return latencySensitive;
+    }
+
+    /** Start with a small heap and let the GC grow/uncommit it instead of reserving everything. */
+    public boolean elasticHeap() {
+        return elasticHeap;
     }
 
     public String id() {
