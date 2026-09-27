@@ -22,6 +22,11 @@ failures=0
 
 run_server() { # run_server <dir> <commands...>: start, forceload markers, run commands, save, stop
     local dir=$1; shift
+    # WORLD_TEST_EXTRA_YML: extra shulker.yml settings for every step (e.g. parallel world ticking).
+    if [[ -n "${WORLD_TEST_EXTRA_YML:-}" ]]; then
+        touch "$dir/shulker.yml"
+        grep -q "# extra" "$dir/shulker.yml" || { echo "# extra"; cat "$WORLD_TEST_EXTRA_YML"; } >> "$dir/shulker.yml"
+    fi
     (
         cd "$dir"
         rm -f console run.log
