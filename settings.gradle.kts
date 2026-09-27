@@ -15,7 +15,7 @@ if (!file(".git").exists()) {
 
 rootProject.name = "shulker"
 
-for (name in listOf("shulker-api", "shulker-server", "shulker-checkstyle", "shulker-launcher")) {
+for (name in listOf("shulker-api", "shulker-server", "shulker-checkstyle", "shulker-launcher", "shulker-format")) {
     include(name)
     file(name).mkdirs()
 }

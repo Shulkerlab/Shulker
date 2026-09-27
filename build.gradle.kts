@@ -59,7 +59,7 @@ subprojects {
         }
     }
 
-    val tempDisabled = setOf("shulker-server", "shulker-launcher", "test-plugin")
+    val tempDisabled = setOf("shulker-server", "shulker-launcher", "shulker-format", "test-plugin")
 
     if (name !in tempDisabled) {
         apply { plugin("io.papermc.paperweight.paper-checkstyle") }

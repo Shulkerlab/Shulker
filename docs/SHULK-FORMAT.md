@@ -1,7 +1,6 @@
-# .shulk dünya formatı — tasarım taslağı (v0.3)
+# .shulk dünya formatı (v0.3)
 
-Durum: **taslak, onay bekliyor.** Disk formatı sonradan en zor değişen şey olduğu için kod yazılmadan
-önce üzerinde anlaşılması gereken kararlar en altta.
+Durum: **onaylandı (2026-09-27), uygulanıyor.** Kararlar 6. bölümde.
 
 ## 1. Ölçümler
 
@@ -44,15 +43,17 @@ zstd-19'a yeniden sıkıştırılırsa yaklaşık %53.
 Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
 
 ```
-[ başlık A ][ başlık B ][ veri alanı ....................................... ]
+[ başlık: 1024 × 24 bayt girdi ][ veri alanı: sıkıştırılmış chunk'lar, boşluklar yeniden kullanılır ]
 ```
 
-- **Başlık** (iki kopya, A/B): sihirli sayı, format sürümü, nesil sayacı, CRC32C, ve 1024 girdilik tablo.
-  Her girdi: veri ofseti (u64), sıkıştırılmış uzunluk (u32), ham uzunluk (u32), zaman damgası (u32),
-  sözlük kimliği (u16), codec/seviye (u8).
-- **Yazma sırası** (çökmeye dayanıklı): chunk verisi boş bir alana yazılır → (sync açıksa fsync) →
-  sıradaki başlık kopyası yeni nesil numarasıyla yazılır. Açılışta CRC'si geçerli en yeni başlık seçilir.
-  Yazma yarıda kalırsa eski başlık eski verileri gösterdiği için hiçbir chunk bozulmaz.
+- **Başlık** (tek kopya, dosyanın başında): sihirli sayı, format sürümü ve 1024 girdilik tablo. Her girdi:
+  veri ofseti (u32), sıkıştırılmış uzunluk (u32), ham uzunluk (u32), zaman damgası (u32), sözlük kimliği
+  (u16), codec (u8), seviye (u8) ve **girdinin kendi CRC32C'si** (u32): 24 bayt.
+- **Yazma sırası** (çökmeye dayanıklı): chunk verisi her zaman boş bir alana yazılır, eski veri yerinde
+  durur → (sync açıksa fsync) → en son 24 baytlık girdi güncellenir. Yazma yarıda kalırsa ya eski girdi
+  eski veriyi gösterir ya da girdinin CRC'si tutmaz ve yalnızca o chunk kaybolur. Bu, `.mca`'nın
+  güvenlik seviyesiyle aynı (o da başlığını yerinde günceller). İlk taslaktaki çift başlık, her dosyaya
+  ~24 KiB ek yük getirdiği için bırakıldı.
 - **Boş alan:** bellekte tutulan boşluk listesi, en iyi uyan boşluğa yazılır. Boşa giden alan %25'i
   geçerse dosya kapanırken sıkıştırılır (compaction).
 - **Büyük chunk'lar:** uzunluk u32 olduğu için Paper'ın ayrı `.mcc` dosyalarına gerek yok, hepsi
@@ -87,12 +88,11 @@ Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
   okuyan araçlar `.shulk`'u okuyamaz. `--to=mca` ile geri dönüştürme her zaman mümkün olacak.
   Eklentiler Bukkit/Paper API'si üzerinden çalıştığı için etkilenmez.
 
-## 6. Onay bekleyen kararlar
+## 6. Kararlar (onaylandı)
 
 1. **Varsayılan format:** Yeni dünyalar `.shulk` mu başlasın, yoksa `.mca` varsayılan kalıp `.shulk`
-   `shulker.yml`'den mi açılsın? (Önerim: yeni dünyalar `.shulk`, mevcut dünyalar kullanıcı açana
-   kadar `.mca`.)
+   `shulker.yml`'den mi açılsın? → **Yeni dünyalar `.shulk`, mevcut dünyalar kullanıcı açana kadar `.mca`.**
 2. **Kademeli geçiş varsayılan mı?** Mevcut bir `.mca` dünyada `.shulk` açılınca eski dosyalar
-   yerinde kalıp chunk'lar kaydedildikçe mi taşınsın? (Önerim: evet; eski `.mca`'lar boşalınca silinir.)
+   yerinde kalıp chunk'lar kaydedildikçe mi taşınsın? → **Evet, kademeli; boşalan `.mca`'lar silinir.**
 3. **Soğuk chunk'ların arka planda zstd-19'a sıkıştırılması** varsayılan açık mı olsun?
-   (Önerim: açık, sadece sunucu MSPT'si düşükken çalışır.)
+   → **Varsayılan açık, sadece MSPT düşükken.**
