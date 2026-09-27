@@ -50,6 +50,11 @@ public final class ShulkerConfig {
     public static int coldRecompressionChunksPerSecond = 20;
     public static double coldRecompressionMaxMspt = 30.0;
 
+    // ---- parallel world ticking ------------------------------------------------------------
+    public static boolean parallelWorldTicking = false;
+    public static int parallelWorldTickingThreadCount = 0;
+    public static boolean parallelWorldTickingLogContainerCreation = false;
+
     // ---- async pathfinding -----------------------------------------------------------------
     public static boolean asyncPathfinding = true;
     public static int asyncPathfindingThreads = 0;
@@ -110,6 +115,15 @@ public final class ShulkerConfig {
         coldRecompressionMaxMspt = dbl("storage.cold-recompression.max-mspt", coldRecompressionMaxMspt,
             "Pause while the server's average tick time is above this many milliseconds.");
 
+        parallelWorldTicking = bool("parallel-world-ticking.enabled", parallelWorldTicking,
+            "EXPERIMENTAL (SparklyPaper). Tick worlds in parallel. Only helps servers with several busy worlds. "
+                + "Plugins that touch another world from an event can crash the server (e.g. NoCheatPlus movement checks), "
+                + "and non-player entities cannot use portals.");
+        parallelWorldTickingThreadCount = integer("parallel-world-ticking.threads", parallelWorldTickingThreadCount,
+            "Worlds ticked at the same time (0 = half the CPU cores).");
+        parallelWorldTickingLogContainerCreation = bool("parallel-world-ticking.log-container-creation-stacktraces", parallelWorldTickingLogContainerCreation,
+            "Debugging aid: log where inventories are opened from while parallel ticking is on.");
+
         // Vanilla computes paths within the tick; the vanilla profile keeps that timing.
         asyncPathfinding = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         asyncPathfinding = bool("async-pathfinding.enabled", asyncPathfinding,
@@ -130,6 +144,10 @@ public final class ShulkerConfig {
         } catch (IOException e) {
             LOGGER.error("Could not save {}", file, e);
         }
+    }
+
+    public static int parallelWorldTickingThreads() {
+        return parallelWorldTickingThreadCount > 0 ? parallelWorldTickingThreadCount : Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
     }
 
     /** Threads for a worker pool: configured value, or a quarter of the cores (at least one). */

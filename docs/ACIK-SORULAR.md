@@ -62,6 +62,22 @@ trafik %25 azaldı, MSPT değişmedi. Görsel etkisi gerçek bir istemciyle hen�
 `entity-tracker.filter-motion-packets: false`.
 - **Şu anki seçim:** vanilla dışındaki profillerde açık.
 
+### S9. Paralel dünya tick'i (SparklyPaper) varsayılan olarak kapalı
+Açık olduğunda her dünya kendi thread'inde tick'leniyor. Üç dünyaya dağıtılmış 1500 mobla ortalama
+tick 20.4 ms'den 14.5 ms'ye iniyor (−%29). Tek dünyası yüklü sunucularda (çoğu survival, tek dünyalı
+skyblock eklentileri) kazanç yok. Başka bir dünyaya dokunan eklentiler thread kontrolüne takılıp
+sunucuyu çökertebiliyor (NoCheatPlus bilinen örnek), oyuncu olmayan entity'ler portal kullanamıyor.
+Kapalıyken SparklyPaper'ın eklediği ek kontroller ve kısıtların hiçbiri çalışmıyor; sunucu Paper gibi
+davranıyor. Açıkken başlangıçta büyük bir uyarı basılıyor. SparklyPaper'ın lisans dosyası yok;
+GPLv3 gerekçesiyle ve atıfla kullanılıyor (`CREDITS.md`).
+- **Şu anki seçim:** tüm profillerde kapalı (`parallel-world-ticking.enabled`).
+
+### S10. Tick thread izolasyonu 6+ fiziksel çekirdekte otomatik açık
+Tick thread'ine kendi fiziksel çekirdeği veriliyor (hibrit Intel'de P-core, çift CCD'li X3D Ryzen'de
+büyük önbellekli CCD). Test makinesinde (6 çekirdek, sınırlı kaynak) ortalama MSPT ~%7 düştü; hibrit
+ve X3D seçimi yalnızca birim testleriyle doğrulandı (o donanım yok).
+- **Şu anki seçim:** `tick-thread-isolation=auto` (`shulker-launcher.properties`).
+
 ## Karar verilenler
 
 - **Dinamik view distance yok.** View distance, sunucu başlarken `server.properties`'ten okunan

@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MrPowerGamerBR <git@mrpowergamerbr.com>
+Date: Sun, 27 Sep 2026 17:45:41 +0300
+Subject: [PATCH] SparklyPaper: Track each world's MSPT
+
+Keeps 5s/10s/1m tick time windows per ServerLevel.
+
+Ported from SparklyPaper (https://github.com/SparklyPower/SparklyPaper) by
+MrPowerGamerBR. SparklyPaper publishes no license file; as a modification of
+GPL-3.0 Paper code that SparklyPaper distributes, it is used under GPL-3.0
+(see CREDITS.md).
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 0bd30353ac64c5672e388fa07a62cf180d4cdf1d..e8208397ac2af58be26c6f2a09d3d6bef4c1e79b 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1820,7 +1820,15 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             profiler.push("tick");
+ 
+             try {
++                long i = Util.getNanos(); // SparklyPaper - track world's MSPT
+                 level.tick(haveTime);
++                // SparklyPaper start - track world's MSPT
++                long j = Util.getNanos() - i;
++                // These are from the "tickServer" function
++                level.tickTimes5s.add(this.tickCount, j);
++                level.tickTimes10s.add(this.tickCount, j);
++                level.tickTimes1m.add(this.tickCount, j);
++                // SparklyPaper end
+             } catch (Throwable t) {
+                 CrashReport report = CrashReport.forThrowable(t, "Exception ticking world");
+                 level.fillReportDetails(report);
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index d665590195b3c91056a4ee716dcb27c51cec69c6..9ec928ff2d82c9479ee832c85d8d386e2696ae45 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -608,6 +608,12 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+     }
+     // Paper end - chunk tick iteration
+ 
++    // SparklyPaper start - track world's MSPT
++    public final MinecraftServer.TickTimes tickTimes5s = new MinecraftServer.TickTimes(100);
++    public final MinecraftServer.TickTimes tickTimes10s = new MinecraftServer.TickTimes(200);
++    public final MinecraftServer.TickTimes tickTimes1m = new MinecraftServer.TickTimes(1200);
++    // SparklyPaper end
++
+     public ServerLevel(
+         final MinecraftServer server,
+         final Executor executor,

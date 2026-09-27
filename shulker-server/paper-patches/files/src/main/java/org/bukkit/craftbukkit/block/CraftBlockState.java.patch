@@ -1,0 +1,10 @@
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlockState.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlockState.java
+@@ -346,6 +_,7 @@
+ 
+     @Override
+     public java.util.Collection<org.bukkit.inventory.ItemStack> getDrops(org.bukkit.inventory.ItemStack tool, org.bukkit.entity.Entity entity) {
++        if (dev.shulker.server.world.ParallelWorldTicking.enabled()) ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(world.getHandle(), position, "Cannot modify world asynchronously"); // SparklyPaper - parallel world ticking
+         this.requirePlaced();
+         net.minecraft.world.item.ItemStack item = org.bukkit.craftbukkit.inventory.CraftItemStack.asNMSCopy(tool);
+ 

@@ -10,6 +10,8 @@
 #                every mob search the whole path budget
 # Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations).
 # BENCH_BOTS=n adds n headless players walking around the arena (entity tracking, chunk sending).
+# BENCH_WORLDS=3 splits the mobs over the overworld, the nether roof and the end island, for
+# measuring parallel world ticking.
 # Running this accepts the Minecraft EULA for the throwaway server it creates.
 set -euo pipefail
 
@@ -81,6 +83,11 @@ send "gamerule advance_time false"
 send "gamerule advance_weather false"
 send "time set day"
 send "forceload add -$((half + 1)) -$((half + 1)) $half $half"
+worlds="${BENCH_WORLDS:-1}"
+if [[ $worlds -ge 3 ]]; then
+    send "execute in minecraft:the_nether run forceload add -$((half + 1)) -$((half + 1)) $half $half"
+    send "execute in minecraft:the_end run forceload add -$((half + 1)) -$((half + 1)) $half $half"
+fi
 for wall in \
     "-$((half + 1)) $floor -$((half + 1)) $half $((floor + 3)) -$((half + 1))" \
     "-$((half + 1)) $floor $half $half $((floor + 3)) $half" \
@@ -116,7 +123,11 @@ for ((n = 0; n < mobs; n++)); do
             *) type=sheep ;;
         esac
     fi
-    send "summon minecraft:$type $x $floor $z"
+    case $((worlds >= 3 ? n % 3 : 0)) in
+        0) send "summon minecraft:$type $x $floor $z" ;;
+        1) send "execute in minecraft:the_nether run summon minecraft:$type $x 129 $z" ;; # flat bedrock roof
+        *) send "execute in minecraft:the_end run summon minecraft:$type $x 70 $z" ;;      # main island
+    esac
 done
 
 bots_pid=

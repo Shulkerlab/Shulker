@@ -50,6 +50,14 @@ line options `--profile=`, `--memory=` and `--gc=` override the file, and so do 
 - `--dry-run` prints the planned command without starting the server.
 - `--no-relaunch` (or `managed=false`) uses exactly the flags you pass to `java`.
 
+## Parallel world ticking
+
+Off by default. `parallel-world-ticking.enabled: true` in `shulker.yml` ticks each world on its own
+thread (from [SparklyPaper](https://github.com/SparklyPower/SparklyPaper)). With mobs spread over
+three worlds the average tick time dropped from 20.4 to 14.5 ms. It only helps servers with several
+busy worlds, and plugins that change another world from an event can crash the server. While it is
+off, Shulker behaves exactly like Paper.
+
 ## World storage
 
 New worlds are stored as `.shulk` region files: per-chunk zstd with dictionaries trained on
