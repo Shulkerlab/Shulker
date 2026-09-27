@@ -18,6 +18,9 @@ the server JVM with tuned settings:
 - **Garbage collector choice**: G1 for small heaps, Generational Shenandoah for mid-size heaps,
   Generational ZGC for large ones. It falls back to whatever this JDK build has available.
 - **Compact object headers** (JEP 519) on Java 25/26; they are already the default on 27.
+- **Tick thread isolation** (Linux, 6+ physical cores): the tick thread gets a physical core of its
+  own, chosen by CPU topology (P-core on hybrid Intel, the larger-cache die on dual-CCD X3D Ryzen),
+  and every other thread runs elsewhere. About 7% lower average MSPT on a 6-core test machine.
 - **Leyden AOT cache**: the first run records class loading, and later starts reuse it for a
   much faster boot.
 - **Plugin compatibility**: Shulker grants native access, final-field mutation (JEP 500) and

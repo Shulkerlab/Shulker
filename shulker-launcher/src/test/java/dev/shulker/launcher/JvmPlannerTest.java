@@ -29,7 +29,7 @@ class JvmPlannerTest {
     }
 
     private static LauncherConfig config(Profile profile) {
-        return new LauncherConfig(profile, LauncherConfig.AUTO, Collector.AUTO, true, true, false, List.of(), List.of());
+        return new LauncherConfig(profile, LauncherConfig.AUTO, Collector.AUTO, true, true, false, List.of(), List.of(), "off");
     }
 
     private static Plan plan(HostInfo host, Profile profile, VmCapabilities vm) {
@@ -116,7 +116,7 @@ class JvmPlannerTest {
     @Test
     void explicitHeapWins() {
         final LauncherConfig config = new LauncherConfig(Profile.SURVIVAL, 3 * GiB, Collector.AUTO, true, true,
-            false, List.of(), List.of());
+            false, List.of(), List.of(), "off");
         assertEquals(3 * GiB, new JvmPlanner(container(64 * GiB, 16, 25), config, TEMURIN_25).plan().heap());
     }
 

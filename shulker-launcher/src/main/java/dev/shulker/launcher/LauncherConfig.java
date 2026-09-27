@@ -24,7 +24,8 @@ public record LauncherConfig(
     boolean managed,
     boolean dryRun,
     List<String> extraJvmArgs,
-    List<String> serverArgs
+    List<String> serverArgs,
+    String tickIsolation
 ) {
 
     public static final String FILE_NAME = "shulker-launcher.properties";
@@ -60,6 +61,10 @@ public record LauncherConfig(
         # When true the launcher restarts the JVM with tuned flags. Set to false to use
         # exactly the flags you pass to 'java' yourself.
         managed=true
+
+        # Give the server's tick thread a physical CPU core of its own (Linux).
+        # auto: on machines with 6+ physical cores; on; off
+        tick-thread-isolation=auto
 
         # Extra JVM arguments appended to the tuned set, space separated
         extra-jvm-args=
@@ -127,7 +132,8 @@ public record LauncherConfig(
             managed,
             dryRun,
             extra.isEmpty() ? List.of() : Arrays.asList(extra.split("\\s+")),
-            List.copyOf(serverArgs)
+            List.copyOf(serverArgs),
+            setting(file, "tick-thread-isolation", "SHULKER_TICK_THREAD_ISOLATION", "auto").toLowerCase(Locale.ROOT)
         );
     }
 

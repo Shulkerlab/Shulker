@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Sun, 27 Sep 2026 17:42:22 +0300
+Subject: [PATCH] Tick thread CPU isolation
+
+Pin the tick thread to the CPU the launcher reserved for it
+(-Dshulker.tick-cpu) before worlds load; other threads are moved to
+-Dshulker.worker-cpus by dev.shulker.server.cpu.ThreadAffinity.
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index 0b6d7f99edde802cb464baa5a4b2b4a4dcce684a..205eb5d28d4cf00f9bff57e641e78323ca611a45 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -167,6 +167,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+ 
+     @Override
+     protected boolean initServer() throws IOException {
++        dev.shulker.server.cpu.ThreadAffinity.applyToTickThread(); // Shulker - tick thread CPU isolation
+         Thread consoleThread = new Thread("Server console handler") {
+             @Override
+             public void run() {
