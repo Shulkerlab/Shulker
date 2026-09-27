@@ -9,6 +9,7 @@
 #   pathfinding  husks hunting villagers standing on pillars: unreachable targets make
 #                every mob search the whole path budget
 # Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations).
+# BENCH_BOTS=n adds n headless players walking around the arena (entity tracking, chunk sending).
 # Running this accepts the Minecraft EULA for the throwaway server it creates.
 set -euo pipefail
 
@@ -32,9 +33,13 @@ level-type=minecraft\:flat
 online-mode=false
 server-port=$port
 pause-when-empty-seconds=-1
+allow-flight=true
+max-players=1000
 spawn-protection=0
 difficulty=$([[ $scenario == pathfinding ]] && echo easy || echo peaceful)
 EOF
+# Bots all connect from 127.0.0.1.
+printf 'settings:\n  connection-throttle: -1\n' > bukkit.yml
 # Activation range 0 = always active, so mobs tick fully without a player nearby.
 cat > spigot.yml <<EOF
 world-settings:
@@ -112,12 +117,19 @@ for ((n = 0; n < mobs; n++)); do
     send "summon minecraft:$type $x $floor $z"
 done
 
+bots_pid=
+if [[ "${BENCH_BOTS:-0}" -gt 0 ]]; then
+    python3 "$root/scripts/mc-bots.py" "$BENCH_BOTS" $((warmup + measure + 5)) 127.0.0.1 "$port" $((half - 8)) &
+    bots_pid=$!
+fi
+
 sleep "$warmup"
 send "mspt"
 sleep "$measure"
 send "mspt"
 sleep 2
 count_line=$(grep -c 'Summoned new' server.log || true)
+[[ -n "$bots_pid" ]] && wait "$bots_pid"
 send "stop"
 wait "$server" || true
 trap - EXIT
