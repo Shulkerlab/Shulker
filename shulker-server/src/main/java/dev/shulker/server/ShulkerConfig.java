@@ -36,10 +36,6 @@ public final class ShulkerConfig {
     public static String asyncPathfindingRejectPolicy = "caller_runs";
     public static int asyncPathfindingQueueSize = 0;
 
-    // ---- entity tracker --------------------------------------------------------------------
-    public static boolean multithreadedTracker = true;
-    public static int multithreadedTrackerThreads = 0;
-
     private ShulkerConfig() {
     }
 
@@ -68,11 +64,6 @@ public final class ShulkerConfig {
             "Pending path requests before the queue is full (0 = threads x 256).");
         asyncPathfindingRejectPolicy = string("async-pathfinding.reject-policy", asyncPathfindingRejectPolicy,
             "When the queue is full: caller_runs computes the new path on the tick thread, flush_all computes every queued path there.");
-
-        multithreadedTracker = bool("entity-tracker.multithreaded", multithreadedTracker,
-            "Update which players see which entities on worker threads.");
-        multithreadedTrackerThreads = integer("entity-tracker.threads", multithreadedTrackerThreads,
-            "Worker threads (0 = a quarter of the CPU cores).");
 
         dev.shulker.server.async.path.AsyncPathfinding.configure();
 
