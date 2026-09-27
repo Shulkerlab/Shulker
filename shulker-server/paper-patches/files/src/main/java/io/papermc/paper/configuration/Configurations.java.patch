@@ -1,0 +1,10 @@
+--- a/src/main/java/io/papermc/paper/configuration/Configurations.java
++++ b/src/main/java/io/papermc/paper/configuration/Configurations.java
+@@ -173,6 +_,7 @@
+         }
+         this.applyWorldConfigTransformations(contextMap, node, null);
+         final W instance = node.require(this.worldConfigClass);
++        if (result.isNewFile() && instance instanceof WorldConfiguration worldConfig) dev.shulker.server.ShulkerProfile.applyWorldDefaults(worldConfig); // Shulker - profile defaults
+         node.set(this.worldConfigClass, instance);
+         this.trySaveFileNode(loader, node, configFile.toString());
+     }

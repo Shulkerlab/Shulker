@@ -1,0 +1,38 @@
+--- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
++++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+@@ -45,6 +_,10 @@
+     private static final ServerBuildInfo BUILD_INFO = ServerBuildInfo.buildInfo();
+     private static final String USER_AGENT = BUILD_INFO.brandName() + "/" + BUILD_INFO.asString(VERSION_SIMPLE) + " (https://papermc.io)";
+     private static final Gson GSON = new Gson();
++    // Shulker start - Shulker has no update API yet; never ask PaperMC's services about Shulker builds
++    private static final boolean UPDATE_CHECKS = false;
++    private static final Component NO_UPDATE_CHECKS = text("Update checks are not available for Shulker yet", NamedTextColor.GRAY);
++    // Shulker end - Shulker has no update API yet
+ 
+     @Override
+     public long getCacheTime() {
+@@ -54,7 +_,9 @@
+     @Override
+     public Component getVersionMessage() {
+         final Component updateMessage;
+-        if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
++        if (!UPDATE_CHECKS) { // Shulker - no update API yet
++            updateMessage = NO_UPDATE_CHECKS; // Shulker - no update API yet
++        } else if (BUILD_INFO.buildNumber().isEmpty() && BUILD_INFO.gitCommit().isEmpty()) {
+             updateMessage = text("You are running a development version without access to version information", color(0xFF5300));
+         } else {
+             updateMessage = getUpdateStatusMessage();
+@@ -65,6 +_,13 @@
+     }
+ 
+     public static void getUpdateStatusStartupMessage() {
++        // Shulker start - no update API yet
++        if (!UPDATE_CHECKS) {
++            COMPONENT_LOGGER.info(text("Shulker profile: " + dev.shulker.server.ShulkerProfile.current().id()));
++            COMPONENT_LOGGER.info(NO_UPDATE_CHECKS);
++            return;
++        }
++        // Shulker end - no update API yet
+         int distance = DISTANCE_ERROR;
+ 
+         final OptionalInt buildNumber = BUILD_INFO.buildNumber();
