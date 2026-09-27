@@ -1,0 +1,98 @@
+# .shulk dünya formatı — tasarım taslağı (v0.3)
+
+Durum: **taslak, onay bekliyor.** Disk formatı sonradan en zor değişen şey olduğu için kod yazılmadan
+önce üzerinde anlaşılması gereken kararlar en altta.
+
+## 1. Ölçümler
+
+Deney: seed `shulker`, 64×64 chunk üretilmiş overworld (16 region dosyası, 8100 chunk, 255 MiB ham
+NBT). Sözlük bir grup region'dan eğitildi, başka region'larda test edildi (sızıntı yok).
+
+**Disk boyutu (tüm set):**
+
+| Yöntem | Boyut | `.mca`'ya göre |
+|---|---|---|
+| `.mca` (bugünkü hali, diskte) | 57.6 MiB | 1.00× |
+| zlib, chunk başına, sektör dolgusu yok | 37.3 MiB | 1.55× |
+| zstd-3, chunk başına | 40.5 MiB | 1.42× |
+| zstd-3 + sözlük | 36.7 MiB | 1.57× |
+| zstd-3, bütün region tek parça (Linear tarzı) | 36.1 MiB | 1.60× |
+| zstd-19, chunk başına | 32.8 MiB | 1.76× |
+
+**Hız (test seti: 54 MiB ham veri, zstd-jni, tek thread):**
+
+| Codec | Oran | Sıkıştırma | Açma |
+|---|---|---|---|
+| zlib-6 (bugünkü `.mca`) | 7.3× | 58 MB/s | 473 MB/s |
+| zstd-3 + sözlük | 7.7× | 396 MB/s | 1013 MB/s |
+| **zstd-6 + sözlük** | **8.8×** | **133 MB/s** | **1116 MB/s** |
+| zstd-19 + sözlük | 10.0× | 5 MB/s | 999 MB/s |
+
+**Çıkarımlar:**
+1. `.mca`'nın kaybının en büyük kısmı sıkıştırma değil, **4 KiB sektör dolgusu**: aynı zlib'le bile %35
+   küçülüyor.
+2. Düşük seviye zstd, küçük chunk'larda zlib'den **daha kötü**. Sözlük olmadan zstd'nin avantajı az.
+3. zstd-6 + sözlük: zlib'den %21 küçük, 2.3× hızlı sıkıştırma, 2.4× hızlı açma.
+4. Bütün region'ı tek parça sıkıştırmak (Linear), chunk başına + sözlükten iyi değil ve rastgele erişimi
+   kaybettiriyor. Bu yüzden chunk başına sıkıştırma.
+
+Tahmini sonuç: `.mca`'ya göre yaklaşık **%46 daha küçük** (zstd-6 + sözlük, dolgusuz). Soğuk chunk'lar
+zstd-19'a yeniden sıkıştırılırsa yaklaşık %53.
+
+## 2. Dosya yapısı: `r.X.Z.shulk`
+
+Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
+
+```
+[ başlık A ][ başlık B ][ veri alanı ....................................... ]
+```
+
+- **Başlık** (iki kopya, A/B): sihirli sayı, format sürümü, nesil sayacı, CRC32C, ve 1024 girdilik tablo.
+  Her girdi: veri ofseti (u64), sıkıştırılmış uzunluk (u32), ham uzunluk (u32), zaman damgası (u32),
+  sözlük kimliği (u16), codec/seviye (u8).
+- **Yazma sırası** (çökmeye dayanıklı): chunk verisi boş bir alana yazılır → (sync açıksa fsync) →
+  sıradaki başlık kopyası yeni nesil numarasıyla yazılır. Açılışta CRC'si geçerli en yeni başlık seçilir.
+  Yazma yarıda kalırsa eski başlık eski verileri gösterdiği için hiçbir chunk bozulmaz.
+- **Boş alan:** bellekte tutulan boşluk listesi, en iyi uyan boşluğa yazılır. Boşa giden alan %25'i
+  geçerse dosya kapanırken sıkıştırılır (compaction).
+- **Büyük chunk'lar:** uzunluk u32 olduğu için Paper'ın ayrı `.mcc` dosyalarına gerek yok, hepsi
+  dosyanın içinde.
+
+## 3. Sıkıştırma
+
+- **zstd-jni** (Leaf/Luminol'ün de kullandığı, tüm platformların native'lerini içeren kütüphane).
+  Sistem `libzstd`'sine FFM ile bağlanmak daha "modern" olurdu ama sunucularda kurulu olmayabiliyor.
+- **Varsayılan:** zstd-6 + yerleşik sözlük.
+- **Soğuk chunk'lar:** belli bir süredir değişmeyen chunk'lar sunucu boşta iken arka planda zstd-19'a
+  yeniden sıkıştırılır (hız sınırlı, ana thread'e dokunmaz).
+- **Sözlükler:** her Minecraft sürümü için üretilmiş dünyalardan eğitilir ve jar'a gömülür (~110 KiB).
+  Her chunk kendi sözlük kimliğini taşıdığı için eski sözlükler hep jar'da kalır. Eski dosyalar her zaman
+  okunabilir, farklı sürümlerle yazılmış chunk'lar aynı dosyada karışık durabilir.
+
+## 4. Paper'a bağlanma (eklenti uyumluluğu)
+
+- `ShulkRegionFile extends RegionFile`. `RegionFileStorage` her yerde `RegionFile` döndürmeye devam eder,
+  **public imzalar değişmez** (Luminol/Leaf'in framework'ü dönüş tiplerini değiştiriyor, o yüzden onu
+  almıyoruz).
+- Gereken yamalar yalnızca eklemeli: `RegionFile`'a korumalı bir constructor ve bir metottan `final`'ın
+  kaldırılması.
+- Chunk, entity ve POI depoları aynı sınıftan geçtiği için üçü de `.shulk` olur.
+
+## 5. Geçiş ve dış araçlar
+
+- **Kademeli geçiş:** Bir chunk `.shulk`'ta yoksa `.mca`'dan okunur ve bir sonraki kayıtta `.shulk`'a
+  yazılır. Eski dünya ilk açılışta dönüştürülmeyi beklemeden çalışır, zamanla kendiliğinden geçer.
+- **Tam dönüştürme:** `java -jar shulker.jar --convert-world=<dünya> --to=shulk|mca` (sunucu kapalıyken).
+- **Dış araçlar:** BlueMap, MCA Selector, Chunky'nin harita araçları gibi region dosyalarını doğrudan
+  okuyan araçlar `.shulk`'u okuyamaz. `--to=mca` ile geri dönüştürme her zaman mümkün olacak.
+  Eklentiler Bukkit/Paper API'si üzerinden çalıştığı için etkilenmez.
+
+## 6. Onay bekleyen kararlar
+
+1. **Varsayılan format:** Yeni dünyalar `.shulk` mu başlasın, yoksa `.mca` varsayılan kalıp `.shulk`
+   `shulker.yml`'den mi açılsın? (Önerim: yeni dünyalar `.shulk`, mevcut dünyalar kullanıcı açana
+   kadar `.mca`.)
+2. **Kademeli geçiş varsayılan mı?** Mevcut bir `.mca` dünyada `.shulk` açılınca eski dosyalar
+   yerinde kalıp chunk'lar kaydedildikçe mi taşınsın? (Önerim: evet; eski `.mca`'lar boşalınca silinir.)
+3. **Soğuk chunk'ların arka planda zstd-19'a sıkıştırılması** varsayılan açık mı olsun?
+   (Önerim: açık, sadece sunucu MSPT'si düşükken çalışır.)
