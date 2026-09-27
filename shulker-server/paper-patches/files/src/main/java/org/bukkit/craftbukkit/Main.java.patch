@@ -1,10 +1,11 @@
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
-@@ -201,6 +_,7 @@
+@@ -201,6 +_,8 @@
                  System.setProperty("library.jansi.version", "Paper"); // Paper - set meaningless jansi version to prevent git builds from crashing on Windows
                  System.setProperty("jdk.console", "java.base"); // Paper - revert default console provider back to java.base so we can have our own jline
  
 +                dev.shulker.server.ShulkerProfile.prepareServerProperties((File) options.valueOf("config")); // Shulker - profile defaults
++                dev.shulker.server.ShulkerConfig.load(new File("shulker.yml")); // Shulker - config
                  io.papermc.paper.PaperBootstrap.boot(options);
              } catch (Throwable t) {
                  t.printStackTrace();

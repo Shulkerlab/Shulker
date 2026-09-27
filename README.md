@@ -61,3 +61,9 @@ because Paper embeds the commit hash in the server version.
 | `shulker-launcher/`  | the launcher (plain Java 25, no dependencies) |
 | `shulker-server/`    | server patches on top of Paper (`paper-patches/`, `minecraft-patches/`) |
 | `shulker-api/`       | API patches on top of Paper API |
+
+## License
+
+Shulker is licensed under the [GNU GPL v3](LICENSE). Patches ported from other projects keep
+their original authors and license notes in the patch header. Paper, and the upstream projects
+Shulker builds on, are licensed under their own terms.

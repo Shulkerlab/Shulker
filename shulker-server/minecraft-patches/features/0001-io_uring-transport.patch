@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Sun, 27 Sep 2026 03:28:34 +0300
+Subject: [PATCH] io_uring transport
+
+Use Netty's io_uring transport for player connections on Linux when
+available and enabled in shulker.yml (network.io-uring), falling back
+to epoll/kqueue/NIO otherwise.
+
+Based on Leaf's "Add io_uring support" patch by Dreeam (MIT).
+https://github.com/Winds-Studio/Leaf
+
+diff --git a/net/minecraft/server/network/EventLoopGroupHolder.java b/net/minecraft/server/network/EventLoopGroupHolder.java
+index 9544eaee7e02d00226d957ea0b79cd1a1fb0c4d0..89ea70ecebb87a817854960e7dd48fdd81256c67 100644
+--- a/net/minecraft/server/network/EventLoopGroupHolder.java
++++ b/net/minecraft/server/network/EventLoopGroupHolder.java
+@@ -56,6 +56,20 @@ public abstract class EventLoopGroupHolder {
+         }
+     };
+     // Paper end - Unix domain socket support
++    // Shulker start - io_uring transport
++    private static final EventLoopGroupHolder IO_URING = new EventLoopGroupHolder("io_uring", io.netty.channel.uring.IoUringSocketChannel.class, io.netty.channel.uring.IoUringServerSocketChannel.class) {
++        @Override
++        protected IoHandlerFactory ioHandlerFactory() {
++            return io.netty.channel.uring.IoUringIoHandler.newFactory();
++        }
++    };
++    private static final EventLoopGroupHolder IO_URING_UNIX_DOMAIN = new EventLoopGroupHolder("io_uring Unix Domain Socket", io.netty.channel.uring.IoUringDomainSocketChannel.class, io.netty.channel.uring.IoUringServerDomainSocketChannel.class) {
++        @Override
++        protected IoHandlerFactory ioHandlerFactory() {
++            return io.netty.channel.uring.IoUringIoHandler.newFactory();
++        }
++    };
++    // Shulker end - io_uring transport
+     private final String type;
+     private final Class<? extends Channel> channelCls;
+     private final Class<? extends ServerChannel> serverChannelCls;
+@@ -69,6 +83,11 @@ public abstract class EventLoopGroupHolder {
+     public static EventLoopGroupHolder remote(final java.net.@Nullable SocketAddress address, final boolean allowNativeTransport) {
+         // Paper end - Unix domain socket support
+         if (allowNativeTransport) {
++            // Shulker start - io_uring transport
++            if (dev.shulker.server.ShulkerConfig.ioUring && io.netty.channel.uring.IoUring.isAvailable()) {
++                return address instanceof io.netty.channel.unix.DomainSocketAddress ? IO_URING_UNIX_DOMAIN : IO_URING;
++            }
++            // Shulker end - io_uring transport
+             if (KQueue.isAvailable()) {
+                 return KQUEUE;
+             }

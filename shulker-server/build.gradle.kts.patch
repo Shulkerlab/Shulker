@@ -44,12 +44,17 @@
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -109,7 +_,7 @@
+@@ -109,7 +_,12 @@
  }
  
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":shulker-api")) // Shulker
++    // Shulker start - io_uring transport; keep in step with Minecraft's Netty version
++    implementation("io.netty:netty-transport-classes-io_uring:4.2.15.Final")
++    implementation("io.netty:netty-transport-native-io_uring:4.2.15.Final:linux-x86_64")
++    implementation("io.netty:netty-transport-native-io_uring:4.2.15.Final:linux-aarch_64")
++    // Shulker end - io_uring transport
      implementation("ca.spottedleaf:leafpile:1.2.0")
      implementation("org.jline:jline-terminal-ffm:3.27.1") // use ffm on java 22+
      implementation("org.jline:jline-terminal-jni:3.27.1") // fall back to jni on java 21

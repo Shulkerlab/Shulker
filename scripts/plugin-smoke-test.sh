@@ -14,6 +14,7 @@ work="$(realpath -m "${2:-$root/run-smoke}")"
 cache="$root/.gradle/plugin-cache"
 list="$root/scripts/plugin-smoke-test.plugins"
 boot_timeout=300
+port="${SMOKE_PORT:-25599}"
 
 rm -rf "$work"
 mkdir -p "$work/plugins" "$cache"
@@ -34,6 +35,8 @@ done < "$list"
 
 # ---- boot -------------------------------------------------------------------
 echo "eula=true" > "$work/eula.txt"
+# Offline mode lets the protocol client below log in without a Mojang account.
+printf 'online-mode=false\nserver-port=%s\n' "$port" > "$work/server.properties"
 cd "$work"
 mkfifo console
 exec 3<>console
@@ -55,6 +58,12 @@ if ! grep -q 'Done (' server.log; then
     echo "Server did not finish starting within ${boot_timeout}s:"; tail -n 50 server.log; exit 1
 fi
 
+# A real client connection: exercises the network transport and the plugins that inject
+# into the Netty pipeline (ViaVersion, packetevents).
+client_failed=0
+python3 "$root/scripts/mc-client.py" status 127.0.0.1 "$port" || client_failed=1
+python3 "$root/scripts/mc-client.py" login 127.0.0.1 "$port" || client_failed=1
+
 # Exercise a few plugin commands so their command paths load too.
 for command in "plugins" "version" "lp info" "papi version" "viaversion" "essentials"; do
     send "$command"
@@ -66,14 +75,14 @@ trap - EXIT
 
 # ---- verdict ----------------------------------------------------------------
 enabled=$(grep -cE '\] Enabling [^ ]+ v' server.log || true)
-problems=$(grep -E 'Error occurred while enabling|Could not load plugin|Error occurred while loading|Exception in thread' server.log || true)
+problems=$(grep -E 'Error occurred while enabling|Could not load plugin|Error occurred while loading|Exception in thread|Error sending packet|Exception caught' server.log || true)
 
 echo
 echo "Boot:     $(grep -oE 'Done \([0-9.]+s\)' server.log)"
 echo "Plugins:  $enabled of $expected enabled"
 grep -E '\] Enabling [^ ]+ v' server.log | sed -E 's/.*\] Enabling /  - /'
 
-if [[ -n "$problems" || "$enabled" -lt "$expected" ]]; then
+if [[ -n "$problems" || "$enabled" -lt "$expected" || "$client_failed" -ne 0 ]]; then
     echo
     echo "FAILED"
     [[ -n "$problems" ]] && echo "$problems"
