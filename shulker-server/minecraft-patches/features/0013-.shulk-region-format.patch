@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Sun, 27 Sep 2026 15:50:59 +0300
+Subject: [PATCH] .shulk region format
+
+RegionFileStorage opens region files through ShulkRegionFiles, which
+returns a vanilla RegionFile or a ShulkRegionFile (a RegionFile
+subclass) depending on shulker.yml storage.format and what is on disk.
+Public signatures stay the same; RegionFile gains a protected
+constructor for subclasses, moonrise$startWrite is no longer final and
+the oversized-chunk/header-recalculation methods become public so the
+.shulk region can delegate them to a legacy .mca file during migration.
+
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFile.java b/net/minecraft/world/level/chunk/storage/RegionFile.java
+index 3de7fd2b084c38e72d7a6bc416880a881f514ad3..7c602af55ccbd14c8ec758846c6324ae8cc2c643 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFile.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFile.java
+@@ -130,7 +130,7 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         return this.recalculateCount.get();
+     }
+ 
+-    boolean recalculateHeader() throws IOException {
++    public boolean recalculateHeader() throws IOException { // Shulker - .shulk region format - overridable, callable on the legacy file
+         if (!this.canRecalcHeader) {
+             return false;
+         }
+@@ -405,7 +405,7 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+ 
+     // Paper start - rewrite chunk system
+     @Override
+-    public final ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData moonrise$startWrite(final net.minecraft.nbt.CompoundTag data, final ChunkPos pos) throws IOException {
++    public ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData moonrise$startWrite(final net.minecraft.nbt.CompoundTag data, final ChunkPos pos) throws IOException { // Shulker - .shulk region format - overridable
+         final RegionFile.ChunkBuffer buffer = ((RegionFile)(Object)this).new ChunkBuffer(pos);
+         ((ca.spottedleaf.moonrise.patches.chunk_system.storage.ChunkSystemChunkBuffer)buffer).moonrise$setWriteOnClose(false);
+ 
+@@ -418,6 +418,20 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+     }
+     // Paper end - rewrite chunk system
+ 
++    // Shulker start - .shulk region format
++    /** For subclasses that store chunks elsewhere; no .mca file is opened. */
++    protected RegionFile(final RegionStorageInfo info, final Path path) {
++        this.info = info;
++        this.path = path;
++        this.file = null;
++        this.externalFileDir = path.getParent();
++        this.version = RegionFileVersion.getSelected();
++        this.canRecalcHeader = false;
++        this.offsets = this.header.asIntBuffer();
++        this.timestamps = this.header.asIntBuffer();
++    }
++    // Shulker end - .shulk region format
++
+     public RegionFile(final RegionStorageInfo info, final Path path, final Path externalFileDir, final boolean sync) throws IOException {
+         this(info, path, externalFileDir, RegionFileVersion.getSelected(), sync);
+     }
+@@ -973,11 +987,11 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         return (x & 31) + (z & 31) * 32;
+     }
+ 
+-    synchronized boolean isOversized(int x, int z) {
++    public synchronized boolean isOversized(int x, int z) { // Shulker - .shulk region format - overridable, callable on the legacy file
+         return this.oversized[getChunkIndex(x, z)] == 1;
+     }
+ 
+-    synchronized void setOversized(int x, int z, boolean oversized) throws IOException {
++    public synchronized void setOversized(int x, int z, boolean oversized) throws IOException { // Shulker - .shulk region format - overridable, callable on the legacy file
+         final int offset = getChunkIndex(x, z);
+         boolean previous = this.oversized[offset] == 1;
+         this.oversized[offset] = (byte) (oversized ? 1 : 0);
+@@ -1016,7 +1030,7 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         return this.path.getParent().resolve(this.path.getFileName().toString().replaceAll("\\.mca$", "") + "_oversized_" + x + "_" + z + ".nbt");
+     }
+ 
+-    synchronized net.minecraft.nbt.CompoundTag getOversizedData(int x, int z) throws IOException {
++    public synchronized net.minecraft.nbt.CompoundTag getOversizedData(int x, int z) throws IOException { // Shulker - .shulk region format - overridable, callable on the legacy file
+         Path file = getOversizedFile(x, z);
+         try (DataInputStream out = new DataInputStream(new java.io.BufferedInputStream(new java.util.zip.InflaterInputStream(Files.newInputStream(file))))) {
+             return net.minecraft.nbt.NbtIo.read((java.io.DataInput) out);
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+index 63b40c420030d935bb81a219fb33defe0946e21f..87ea9c32bf8981098364beb617bb5cfe710269ff 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+@@ -115,7 +115,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+ 
+         final Path regionPath = this.folder.resolve(getRegionFileName(chunkX, chunkZ));
+ 
+-        if (!java.nio.file.Files.exists(regionPath)) {
++        if (!dev.shulker.server.world.ShulkRegionFiles.exists(regionPath)) { // Shulker - .shulk region format
+             this.markNonExisting(key);
+             return null;
+         }
+@@ -124,7 +124,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+ 
+         FileUtil.createDirectoriesSafe(this.folder);
+ 
+-        ret = new RegionFile(this.info, regionPath, this.folder, this.sync);
++        ret = dev.shulker.server.world.ShulkRegionFiles.open(this.info, regionPath, this.folder, this.sync); // Shulker - .shulk region format
+ 
+         this.regionCache.putAndMoveToFirst(key, ret);
+ 
+@@ -298,7 +298,7 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+ 
+             FileUtil.createDirectoriesSafe(this.folder);
+ 
+-            ret = new RegionFile(this.info, regionPath, this.folder, this.sync);
++            ret = dev.shulker.server.world.ShulkRegionFiles.open(this.info, regionPath, this.folder, this.sync); // Shulker - .shulk region format
+ 
+             this.regionCache.putAndMoveToFirst(key, ret);
+ 

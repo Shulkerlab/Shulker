@@ -44,12 +44,13 @@
  configurations.named(log4jPlugins.compileClasspathConfigurationName) {
      extendsFrom(configurations.compileClasspath.get())
  }
-@@ -109,7 +_,12 @@
+@@ -109,7 +_,13 @@
  }
  
  dependencies {
 -    implementation(project(":paper-api"))
 +    implementation(project(":shulker-api")) // Shulker
++    implementation(project(":shulker-format")) // Shulker - .shulk region format
 +    // Shulker start - io_uring transport; keep in step with Minecraft's Netty version
 +    implementation("io.netty:netty-transport-classes-io_uring:4.2.15.Final")
 +    implementation("io.netty:netty-transport-native-io_uring:4.2.15.Final:linux-x86_64")

@@ -8,6 +8,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -25,8 +26,11 @@ public final class ShulkerLauncher {
 
     public static void main(String[] args) throws Exception {
         final Path workDir = Path.of("").toAbsolutePath();
-        LauncherConfig config = LauncherConfig.load(workDir, args);
         final Path jar = ownJar();
+        if (jar != null && Arrays.stream(args).anyMatch(a -> a.startsWith("--convert-world="))) {
+            System.exit(convertWorld(args, workDir, jar));
+        }
+        LauncherConfig config = LauncherConfig.load(workDir, args);
 
         if (!config.managed() || jar == null) {
             if (config.managed()) {
@@ -83,6 +87,43 @@ public final class ShulkerLauncher {
         command.addAll(config.serverArgs());
 
         System.exit(runServer(command, workDir));
+    }
+
+    // ---- world conversion ------------------------------------------------------------------
+
+    /**
+     * {@code --convert-world=<dir> --to=shulk|mca}: converts a stopped world's region files
+     * with the server's own classes, then exits.
+     */
+    private static int convertWorld(final String[] args, final Path workDir, final Path jar) throws Exception {
+        String world = null;
+        String target = "shulk";
+        for (String arg : args) {
+            if (arg.startsWith("--convert-world=")) {
+                world = arg.substring("--convert-world=".length());
+            } else if (arg.startsWith("--to=")) {
+                target = arg.substring("--to=".length());
+            }
+        }
+        if (world == null || world.isBlank() || !(target.equals("shulk") || target.equals("mca"))) {
+            Log.warn("Usage: java -jar shulker.jar --convert-world=<world folder> --to=shulk|mca");
+            return 2;
+        }
+        final ServerBundle bundle = ServerBundle.read(jar, workDir);
+        final Path shulkerDir = workDir.resolve(".shulker");
+        final Path marker = shulkerDir.resolve("extracted");
+        final String java = javaExecutable();
+        if (!bundle.isExtracted(marker)) {
+            bundle.extract(java, marker);
+        }
+        final Path bootJar = bundle.writeBootJar(shulkerDir.resolve("boot.jar"));
+        Log.info("Converting " + world + " to ." + target + " (the server must be stopped)");
+        return new ProcessBuilder(java, "-Xmx2G", "--enable-native-access=ALL-UNNAMED",
+            "-cp", workDir.relativize(bootJar).toString(), "dev.shulker.format.WorldConverter", world, target)
+            .directory(workDir.toFile())
+            .inheritIO()
+            .start()
+            .waitFor();
     }
 
     // ---- server process --------------------------------------------------------------------

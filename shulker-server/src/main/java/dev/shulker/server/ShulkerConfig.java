@@ -40,6 +40,11 @@ public final class ShulkerConfig {
     public static boolean multithreadedTracker = false;
     public static int multithreadedTrackerThreads = 0;
 
+    // ---- world storage ---------------------------------------------------------------------
+    /** auto: new worlds .shulk, existing .mca worlds unchanged; shulk: migrate; mca: vanilla. */
+    public static String storageFormat = "auto";
+    public static int storageCompressionLevel = 6;
+
     // ---- async pathfinding -----------------------------------------------------------------
     public static boolean asyncPathfinding = true;
     public static int asyncPathfindingThreads = 0;
@@ -81,6 +86,13 @@ public final class ShulkerConfig {
             "Compute entity tracking updates on worker threads; packets and events still go out on the tick thread.");
         multithreadedTrackerThreads = integer("entity-tracker.threads", multithreadedTrackerThreads,
             "Worker threads (0 = CPU cores, at most 4).");
+
+        storageFormat = ShulkerProfile.current() == ShulkerProfile.VANILLA ? "mca" : "auto"; // technical players use .mca tools
+        storageFormat = string("storage.format", storageFormat,
+            "Region file format. auto: new worlds use .shulk (about 45% smaller than .mca), existing .mca worlds are left alone. "
+                + "shulk: also migrate existing worlds, chunk by chunk as they are saved. mca: vanilla format for new region files.");
+        storageCompressionLevel = integer("storage.compression-level", storageCompressionLevel,
+            "zstd level for chunks as they are saved (1-19). 6 is smaller and faster than .mca's zlib.");
 
         // Vanilla computes paths within the tick; the vanilla profile keeps that timing.
         asyncPathfinding = ShulkerProfile.current() != ShulkerProfile.VANILLA;
