@@ -54,6 +54,8 @@ public final class ShulkerConfig {
         ioUring = bool("network.io-uring", ioUring,
             "Use io_uring instead of epoll on Linux 5.10+ for fewer syscalls per packet.");
 
+        // Vanilla computes paths within the tick; the vanilla profile keeps that timing.
+        asyncPathfinding = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         asyncPathfinding = bool("async-pathfinding.enabled", asyncPathfinding,
             "Compute mob paths on worker threads instead of the tick thread.");
         asyncPathfindingThreads = integer("async-pathfinding.threads", asyncPathfindingThreads,

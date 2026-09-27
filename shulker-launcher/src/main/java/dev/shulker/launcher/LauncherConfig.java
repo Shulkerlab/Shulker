@@ -44,7 +44,8 @@ public record LauncherConfig(
         # Shulker launcher settings. Command line (--profile=, --memory=, --gc=) and
         # SHULKER_PROFILE / SHULKER_MEMORY / SHULKER_GC environment variables override these.
 
-        # Workload preset: survival, skyblock, minigame, lobby
+        # Workload preset: survival, skyblock, minigame, lobby, vanilla
+        # (vanilla: all exploits/dupes allowed, no behaviour-changing optimisations)
         profile=survival
 
         # Max heap. 'auto' sizes it from the machine / container limit, or e.g. 8G, 12288M

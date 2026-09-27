@@ -1,6 +1,7 @@
 package dev.shulker.server;
 
 import com.mojang.logging.LogUtils;
+import io.papermc.paper.configuration.GlobalConfiguration;
 import io.papermc.paper.configuration.WorldConfiguration;
 import it.unimi.dsi.fastutil.objects.Reference2IntMap;
 import java.io.File;
@@ -24,14 +25,18 @@ import org.slf4j.Logger;
  * server.properties or paper-world-defaults.yml is created for the first time. From then on
  * the files belong to the server owner and are never touched again.
  *
- * <p>Changes here are performance-oriented and chosen to be invisible to normal gameplay;
- * anything that changes game mechanics noticeably stays a manual choice.
+ * <p>For the performance profiles, changes are chosen to be invisible to normal gameplay;
+ * anything that changes game mechanics noticeably stays a manual choice. {@link #VANILLA} goes
+ * the other way: it turns off every Paper/Spigot/Shulker deviation from vanilla, including the
+ * exploit fixes, so technical players get dupers, bedrock breaking and vanilla farm rates.
  */
 public enum ShulkerProfile {
     SURVIVAL,
     SKYBLOCK,
     MINIGAME,
-    LOBBY;
+    LOBBY,
+    /** Vanilla mechanics: all exploits and dupes allowed, no behaviour-changing optimisations. */
+    VANILLA;
 
     public static final String PROPERTY = "shulker.profile";
     private static final Logger LOGGER = LogUtils.getClassLogger();
@@ -66,6 +71,8 @@ public enum ShulkerProfile {
                 values.put("view-distance", "8");
                 values.put("simulation-distance", "6");
             }
+            case VANILLA -> {
+            }
             case LOBBY -> {
                 values.put("view-distance", "6");
                 values.put("simulation-distance", "4");
@@ -96,6 +103,60 @@ public enum ShulkerProfile {
         }
     }
 
+    // ---- spigot.yml -------------------------------------------------------------------------
+
+    /**
+     * Seeds a not-yet-existing spigot.yml. Spigot fills in every other key when it loads the
+     * file, so a partial file is fine.
+     */
+    public static void prepareSpigotConfig(final File file) {
+        if (file == null || file.exists() || current() != VANILLA) {
+            return;
+        }
+        final String yaml = """
+            # Seeded by the Shulker 'vanilla' profile.
+            world-settings:
+              default:
+                # Every entity ticks every tick, like vanilla: farm rates match vanilla.
+                entity-activation-range:
+                  animals: 0
+                  monsters: 0
+                  raiders: 0
+                  misc: 0
+                  water: 0
+                  villagers: 0
+                  flying-monsters: 0
+                  tick-inactive-villagers: true
+                # No cap on TNT explosions per tick.
+                max-tnt-per-tick: 1000000
+                # Vanilla item and XP merging.
+                merge-radius:
+                  item: 0.5
+                  exp: -1
+                nerf-spawner-mobs: false
+            """;
+        try {
+            Files.writeString(file.toPath(), yaml, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            System.err.println("[Shulker] Could not write profile defaults to " + file + ": " + e.getMessage());
+        }
+    }
+
+    // ---- paper-global.yml ------------------------------------------------------------------
+
+    /** Called once, when paper-global.yml is first created. */
+    public static void applyGlobalDefaults(final GlobalConfiguration config) {
+        if (current() != VANILLA) {
+            return;
+        }
+        LOGGER.info("Applying Shulker 'vanilla' profile: exploits and dupes are allowed");
+        config.unsupportedSettings.allowPistonDuplication = true;
+        config.unsupportedSettings.allowHeadlessPistons = true;
+        config.unsupportedSettings.allowPermanentBlockBreakExploits = true;
+        config.unsupportedSettings.allowUnsafeEndPortalTeleportation = true;
+        config.unsupportedSettings.skipTripwireHookPlacementValidation = true;
+    }
+
     // ---- paper-world-defaults.yml ----------------------------------------------------------
 
     /** Called once, when paper-world-defaults.yml is first created. */
@@ -103,13 +164,22 @@ public enum ShulkerProfile {
         final ShulkerProfile profile = current();
         LOGGER.info("Applying Shulker '{}' profile defaults to the new world configuration", profile.id());
 
-        // Every profile: same results, less work.
+        if (profile == VANILLA) {
+            // Undo Paper's gameplay changes and exploit fixes.
+            config.unsupportedSettings.fixInvulnerableEndCrystalExploit = false;
+            config.fixes.splitOverstackedLoot = false;
+            config.collisions.maxEntityCollisions = Integer.MAX_VALUE; // vanilla pushes every overlapping entity
+            config.entities.spawning.perPlayerMobSpawns = false;
+            return;
+        }
+
+        // Every other profile: same results, less work.
         config.environment.optimizeExplosions = true;
         config.chunks.preventMovingIntoUnloadedChunks = true;
         capProjectiles(config.chunks.entityPerChunkSaveLimit);
 
         switch (profile) {
-            case SURVIVAL -> {
+            case SURVIVAL, VANILLA -> {
             }
             case SKYBLOCK -> {
                 // Island mob farms pile entities into one block.

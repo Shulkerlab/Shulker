@@ -15,7 +15,9 @@ public enum Profile {
     /** Short-lived arenas cloned from templates. Pause-sensitive combat. */
     MINIGAME(0, true, false),
     /** Hub servers: few chunks, many players. Heap is capped and allowed to shrink. */
-    LOBBY(6L << 30, true, true);
+    LOBBY(6L << 30, true, true),
+    /** Vanilla mechanics for technical players: exploits and dupes allowed. Tuned like survival. */
+    VANILLA(0, false, false);
 
     private final long autoHeapCap;
     private final boolean latencySensitive;

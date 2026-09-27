@@ -38,6 +38,7 @@ java -jar shulker-26.2.jar --profile=skyblock nogui
 | `skyblock` | many small worlds, low pauses |
 | `minigame` | short-lived arenas, low pauses |
 | `lobby`    | hubs; heap capped at 6 GiB and shrinks when idle |
+| `vanilla`  | technical play: every exploit and dupe allowed (TNT/rail/carpet dupers, bedrock breaking, sand dupe...), vanilla farm rates, no behaviour-changing optimisations |
 
 Settings live in `shulker-launcher.properties`, which is created on the first start. Command
 line options `--profile=`, `--memory=` and `--gc=` override the file, and so do the
