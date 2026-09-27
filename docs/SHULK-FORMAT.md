@@ -79,7 +79,12 @@ Bir dosya = 32×32 chunk (`.mca` ile aynı bölge).
   öncelikli thread'de, saniyede en fazla 20 chunk olacak şekilde zstd-19'a yeniden sıkıştırılır.
   Yalnızca sunucunun o anda açık tuttuğu region'lar işlenir (dosyayı ikinci kez açmamak için). Oyuncular
   dolaştıkça zamanla tüm dünya kapsanır.
-- **Sözlükler:** her Minecraft sürümü için üretilmiş dünyalardan eğitilir ve jar'a gömülür (~110 KiB).
+- **Sözlükler:** her Minecraft sürümü için üretilmiş dünyalardan eğitilir ve jar'a gömülür. 26.2 için:
+  chunk (id 1, 110 KiB, 9158 gerçek chunk), entity (id 2, 50 KiB) ve POI (id 3, 4 KiB). POI chunk'ları
+  çok küçük (gerçek dünyada ortalama 148 bayt) ve gerçek dünyada yeterli örnek olmadığı için POI sözlüğü,
+  düz bir dünyada 2304 chunk'a rastgele yerleştirilmiş 10 897 POI bloğundan (iş blokları, yataklar, çan,
+  arı kovanları, lodestone, paratoner) eğitildi. Gerçek köy POI'lerinde sözlüksüz zstd 14 020 → 12 227
+  bayt, sözlükle 4 155 bayt (%66 daha küçük).
   Her chunk kendi sözlük kimliğini taşıdığı için eski sözlükler hep jar'da kalır. Eski dosyalar her zaman
   okunabilir, farklı sürümlerle yazılmış chunk'lar aynı dosyada karışık durabilir.
 
