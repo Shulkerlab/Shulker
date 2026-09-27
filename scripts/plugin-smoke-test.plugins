@@ -1,0 +1,9 @@
+# Plugins used by scripts/plugin-smoke-test.sh, one per line: <name> <sha512> <url>
+# Versions are pinned; bump them on purpose. packetevents, ViaVersion and WorldEdit reach into server internals (NMS).
+# EssentialsX has no 26.2 build yet; its 26.1.2 build doubles as an older-plugin compatibility check.
+luckperms 188a91f0a543d23bfda32385fca6db63d61e49c8a422bd452a260bd9cbc6a7d7fe45071199e9fca8f3ce43c2b41ee84fd315bd15464577028ff3951a7d4fab27 https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar
+placeholderapi f048d55b633fd816c08e2e4472bd54a75fc4d13534682e6e7745408253d2f393706efdc389d12ca2cf28d4dc035a9afdda3eed9ecde51c7e332831391d9b6479 https://cdn.modrinth.com/data/lKEzGugV/versions/pIvQcXW8/PlaceholderAPI-2.12.3.jar
+worldedit 138ea8f412bf4a17104d2e090a9171e1b263c6b28a060dacda5bc78c4629e9bac1c3834cccaaa50ac87bf148a269cf9dfd46967dddedd64dc512fdf7a5db17f9 https://cdn.modrinth.com/data/1u6JkXh5/versions/J1eeOh6C/worldedit-bukkit-7.4.6-beta-02.jar
+packetevents 18a942cb55f64783a63b28deea2cebbbe782e5d6a1089f6700430e183bfbce0a45398a640ed0dff4361b55190dcf47017f2ca7788f4a5c8c9efad1f549a63fe3 https://cdn.modrinth.com/data/HYKaKraK/versions/m78nFxYg/packetevents-spigot-2.14.0.jar
+viaversion 9f23879f392a53098e1cc1a70a942bd8558ae39ab725185cf79a5dda396e748af0896416ea0357473e9c8e6b8efb330a8f4afd7ca6bd3f80861419cd67ed69e1 https://cdn.modrinth.com/data/P1OZGk5p/versions/TEgYlalY/ViaVersion-5.12.1-SNAPSHOT.jar
+essentialsx 472ecf71924801723643ca6e1f9931297de5aa0874a544f8a719e2e2f7c81af81ef7bcbd38b6e43f0260a9dae6abe42c97907e70e2430e326ff8cff12ebd61cf https://cdn.modrinth.com/data/hXiIvTyT/versions/nY6VN1XH/EssentialsX-2.22.0.jar

@@ -64,3 +64,4 @@ manifest.mf
 *.jar
 test-plugin.settings.gradle.kts
 *.rej
+/run-smoke
