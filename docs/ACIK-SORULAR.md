@@ -40,3 +40,21 @@ Sonradan profil değiştiren biri için `/shulker profile apply` gibi bir komut 
 Leaf'te varsayılan kapalı. Mob'lar yolu bir tick geç alabiliyor (gözle fark edilmez). Pathfinding
 ağırlıklı yükte tick süresini yarıya indiriyor. Vanilla profilinde kapalı.
 - **Şu anki seçim:** vanilla dışındaki profillerde açık.
+
+### S6. Multithreaded entity tracker varsayılan olarak açık
+Leaf'te "deneysel" ve varsayılan kapalı. Riski kabul ettin. 40 bot ve 1500 mob ile ortalama tick
+süresi 34.8 ms'den 28.2 ms'ye indi. Bot'lar tracker açıkken ve kapalıyken aynı paketleri alıyor.
+Citizens gibi NPC eklentileriyle henüz test edilmedi (Citizens'ın derleme sunucusuna otomatik
+erişilemiyor). Sorun çıkarsa `shulker.yml` → `entity-tracker.multithreaded: false`.
+- **Şu anki seçim:** vanilla dışındaki profillerde açık.
+
+### S7. Yavaş istemci sınırı: 32 MiB
+Bir oyuncu için gönderilmeyi bekleyen veri 32 MiB'ı aşınca bağlantı kesiliyor. Hiç okumayan
+istemcileri vanilla keep-alive zaten 30 saniyede düşürüyor; bu sınır, o 30 saniye içinde belleğin
+dolmasını engelliyor. Normal oyuncular testte bu sınıra hiç yaklaşmadı.
+- **Şu anki seçim:** 32 MiB (`network.slow-client-protection.max-pending-megabytes`).
+
+## Karar verilenler
+
+- **Dinamik view distance yok.** View distance, sunucu başlarken `server.properties`'ten okunan
+  sabit bir değer olarak kalıyor. Profiller yalnızca ilk kurulumda bu değeri belirliyor.
