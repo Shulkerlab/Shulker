@@ -37,6 +37,8 @@ done < "$list"
 echo "eula=true" > "$work/eula.txt"
 # Offline mode lets the protocol client below log in without a Mojang account.
 printf 'online-mode=false\nserver-port=%s\n' "$port" > "$work/server.properties"
+# SHULKER_YML=file runs the test with that shulker.yml (e.g. to cover optional optimisations).
+[[ -n "${SHULKER_YML:-}" ]] && cp "$SHULKER_YML" "$work/shulker.yml"
 cd "$work"
 mkfifo console
 exec 3<>console

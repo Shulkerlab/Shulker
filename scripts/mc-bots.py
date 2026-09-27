@@ -25,6 +25,9 @@ LOGIN_SB_HELLO, LOGIN_SB_QUERY_ANSWER, LOGIN_SB_ACK = 0, 2, 3
 CFG_CB_DISCONNECT, CFG_CB_FINISH, CFG_CB_KEEP_ALIVE, CFG_CB_PING, CFG_CB_KNOWN_PACKS, CFG_CB_CODE_OF_CONDUCT = 2, 3, 4, 5, 14, 19
 CFG_SB_CLIENT_INFO, CFG_SB_FINISH, CFG_SB_KEEP_ALIVE, CFG_SB_PONG, CFG_SB_KNOWN_PACKS, CFG_SB_ACCEPT_COC = 0, 3, 4, 5, 7, 9
 PLAY_CB_BATCH_FINISHED, PLAY_CB_DISCONNECT, PLAY_CB_KEEP_ALIVE, PLAY_CB_PING, PLAY_CB_POSITION, PLAY_CB_START_CONFIG = 11, 32, 44, 61, 72, 118
+# Counted to compare entity tracking between server builds.
+COUNTED = {1: "add_entity", 77: "remove_entities", 53: "move_pos", 54: "move_pos_rot", 99: "entity_data",
+           131: "attributes", 101: "motion", 125: "teleport_entity"}
 PLAY_SB_ACCEPT_TELEPORT, PLAY_SB_BATCH_RECEIVED, PLAY_SB_CONFIG_ACK, PLAY_SB_KEEP_ALIVE, PLAY_SB_MOVE_POS, PLAY_SB_LOADED, PLAY_SB_PONG = 0, 11, 16, 28, 30, 44, 45
 
 
@@ -182,12 +185,17 @@ class Bot:
                 if end > len(buffer):
                     break
                 frame_pos = start
+                self.stats["bytes"] += end - pos
                 if self.threshold >= 0:
                     data_length, frame_pos = read_varint(buffer, frame_pos)
                     if data_length:
+                        self.stats["counts"]["compressed"] = self.stats["counts"].get("compressed", 0) + 1
                         pos = end
                         continue
                 packet_id, frame_pos = read_varint(buffer, frame_pos)
+                name = COUNTED.get(packet_id)
+                if name:
+                    self.stats["counts"][name] = self.stats["counts"].get(name, 0) + 1
                 if packet_id in wanted:
                     yield packet_id, bytes(buffer[frame_pos:end])
                 pos = end
@@ -236,7 +244,8 @@ async def main():
     host = sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1"
     port = int(sys.argv[4]) if len(sys.argv) > 4 else 25565
     radius = float(sys.argv[5]) if len(sys.argv) > 5 else 40.0
-    stats = {"playing": 0, "kicked": 0, "errors": 0, "stall": len(sys.argv) > 6 and sys.argv[6] == "stall"}
+    stats = {"playing": 0, "kicked": 0, "errors": 0, "stall": len(sys.argv) > 6 and sys.argv[6] == "stall",
+             "counts": {}, "bytes": 0}
     loop = asyncio.get_running_loop()
     until = loop.time() + seconds
 
@@ -251,6 +260,9 @@ async def main():
 
     await asyncio.gather(*(one(i) for i in range(count)))
     print(f"bots: {stats['playing']}/{count} reached play, {stats['kicked']} kicked, {stats['errors']} errors")
+    if stats["counts"]:
+        per_bot = {k: v // max(1, stats["playing"]) for k, v in sorted(stats["counts"].items())}
+        print(f"packets per bot: {per_bot}, MiB per bot: {stats['bytes'] / max(1, stats['playing']) / 2**20:.1f}")
     if stats["playing"] == 0:
         sys.exit(1)
 

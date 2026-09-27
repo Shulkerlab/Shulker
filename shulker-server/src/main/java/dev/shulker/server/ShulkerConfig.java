@@ -32,6 +32,12 @@ public final class ShulkerConfig {
     public static boolean slowClientProtection = true;
     public static int slowClientMaxPendingMegabytes = 32;
 
+    // ---- entity tracking -------------------------------------------------------------------
+    /** Skip entity move packets whose position and rotation deltas are all zero. */
+    public static boolean skipEmptyMovePackets = true;
+    public static boolean multithreadedTracker = false;
+    public static int multithreadedTrackerThreads = 0;
+
     // ---- async pathfinding -----------------------------------------------------------------
     public static boolean asyncPathfinding = true;
     public static int asyncPathfindingThreads = 0;
@@ -60,6 +66,16 @@ public final class ShulkerConfig {
             "Disconnect players whose connection cannot keep up, instead of buffering their data until the server runs out of memory.");
         slowClientMaxPendingMegabytes = integer("network.slow-client-protection.max-pending-megabytes", slowClientMaxPendingMegabytes,
             "Disconnect when this much data is waiting to be sent to one player. Clients that stop reading entirely are already dropped by the 30 s keep-alive timeout.");
+
+        skipEmptyMovePackets = ShulkerProfile.current() != ShulkerProfile.VANILLA;
+        skipEmptyMovePackets = bool("entity-tracker.skip-empty-move-packets", skipEmptyMovePackets,
+            "Do not send entity movement packets that move and rotate the entity by zero.");
+        // Experimental upstream (Leaf); on by default here, except where vanilla timing matters.
+        multithreadedTracker = ShulkerProfile.current() != ShulkerProfile.VANILLA;
+        multithreadedTracker = bool("entity-tracker.multithreaded", multithreadedTracker,
+            "Compute entity tracking updates on worker threads; packets and events still go out on the tick thread.");
+        multithreadedTrackerThreads = integer("entity-tracker.threads", multithreadedTrackerThreads,
+            "Worker threads (0 = CPU cores, at most 4).");
 
         // Vanilla computes paths within the tick; the vanilla profile keeps that timing.
         asyncPathfinding = ShulkerProfile.current() != ShulkerProfile.VANILLA;
