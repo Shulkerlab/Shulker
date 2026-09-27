@@ -13,6 +13,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+source "$root/scripts/test-env.sh"
 jar="$(realpath "${1:-$(ls "$root"/build/libs/shulker-*.jar | head -n1)}")"
 work="$(realpath -m "${2:-$root/run-world-test}")"
 port="${WORLD_TEST_PORT:-25589}"
@@ -26,7 +27,8 @@ run_server() { # run_server <dir> <commands...>: start, forceload markers, run c
         rm -f console run.log
         mkfifo console
         exec 3<>console
-        java -jar "$jar" --memory=3G nogui < console > run.log 2>&1 &
+        launcher_props .
+        limited java -jar "$jar" --memory="$SHULKER_TEST_HEAP" nogui < console > run.log 2>&1 &
         local pid=$!
         for _ in $(seq 1 300); do grep -q "Done (" run.log 2>/dev/null && break; sleep 1; done
         for c in "${coords[@]}"; do echo "forceload add $c $c" >&3; done
@@ -56,7 +58,7 @@ expect() { # expect <dir> <n>: the last run printed n "Test passed" and no chunk
 }
 
 verify() { # verify <dir>
-    if (cd "$1" && java -jar "$jar" --verify-world=world 2>&1 | tail -n1 | sed 's/^/  /'; exit "${PIPESTATUS[0]}"); then :; else
+    if (cd "$1" && limited java -jar "$jar" --verify-world=world 2>&1 | tail -n1 | sed 's/^/  /'; exit "${PIPESTATUS[0]}"); then :; else
         echo "  FAIL: verification"; failures=$((failures + 1)); fi
 }
 
@@ -97,8 +99,8 @@ expect "$work/mca" 8
 verify "$work/mca"
 
 echo "4. convert to .mca and back"
-(cd "$work/mca" && java -jar "$jar" --convert-world=world --to=mca | tail -n1 | sed 's/^/  /')
-(cd "$work/mca" && java -jar "$jar" --convert-world=world --to=shulk | tail -n1 | sed 's/^/  /')
+(cd "$work/mca" && limited java -jar "$jar" --convert-world=world --to=mca | tail -n1 | sed 's/^/  /')
+(cd "$work/mca" && limited java -jar "$jar" --convert-world=world --to=shulk | tail -n1 | sed 's/^/  /')
 verify "$work/mca"
 run_server "$work/mca" "${test_diamond[@]}" "${test_gold[@]}"
 expect "$work/mca" 8

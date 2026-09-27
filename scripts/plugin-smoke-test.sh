@@ -9,6 +9,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+source "$root/scripts/test-env.sh"
 jar="$(realpath "${1:-$(ls "$root"/build/libs/shulker-*.jar | head -n1)}")"
 work="$(realpath -m "${2:-$root/run-smoke}")"
 cache="$root/.gradle/plugin-cache"
@@ -42,7 +43,8 @@ printf 'online-mode=false\nserver-port=%s\n' "$port" > "$work/server.properties"
 cd "$work"
 mkfifo console
 exec 3<>console
-java -jar "$jar" --memory=2G nogui < console > server.log 2>&1 &
+launcher_props .
+limited java -jar "$jar" --memory="$SHULKER_TEST_HEAP" nogui < console > server.log 2>&1 &
 server=$!
 
 send() { echo "$1" >&3; }

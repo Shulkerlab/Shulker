@@ -14,6 +14,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+source "$root/scripts/test-env.sh"
 jar="$(realpath "${1:-$(ls "$root"/build/libs/shulker-*.jar | head -n1)}")"
 mobs="${2:-1500}"
 work="$(realpath -m "${3:-$root/run-bench}")"
@@ -56,13 +57,14 @@ EOF
 [[ -n "${SHULKER_YML:-}" ]] && cp "$SHULKER_YML" shulker.yml
 # BENCH_JFR=file.jfr records a CPU profile of the measurement window.
 if [[ -n "${BENCH_JFR:-}" ]]; then
-    echo "extra-jvm-args=-XX:StartFlightRecording:delay=$((warmup + 15))s,duration=$((measure - 10))s,dumponexit=true,settings=profile,filename=$(realpath -m "$BENCH_JFR")" \
-        > shulker-launcher.properties
+    launcher_props . "-XX:StartFlightRecording:delay=$((warmup + 15))s,duration=$((measure - 10))s,dumponexit=true,settings=profile,filename=$(realpath -m "$BENCH_JFR")"
+else
+    launcher_props .
 fi
 
 mkfifo console
 exec 3<>console
-java -jar "$jar" --memory=4G --gc=g1 nogui < console > server.log 2>&1 &
+limited java -jar "$jar" --memory="$SHULKER_TEST_HEAP" --gc=g1 nogui < console > server.log 2>&1 &
 server=$!
 send() { echo "$1" >&3; }
 cleanup() { kill "$server" 2>/dev/null || true; }
@@ -119,7 +121,7 @@ done
 
 bots_pid=
 if [[ "${BENCH_BOTS:-0}" -gt 0 ]]; then
-    python3 "$root/scripts/mc-bots.py" "$BENCH_BOTS" $((warmup + measure + 5)) 127.0.0.1 "$port" $((half - 8)) &
+    limited python3 "$root/scripts/mc-bots.py" "$BENCH_BOTS" $((warmup + measure + 5)) 127.0.0.1 "$port" $((half - 8)) &
     bots_pid=$!
 fi
 
