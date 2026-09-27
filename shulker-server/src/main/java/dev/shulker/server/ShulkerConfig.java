@@ -35,6 +35,8 @@ public final class ShulkerConfig {
     // ---- entity tracking -------------------------------------------------------------------
     /** Skip entity move packets whose position and rotation deltas are all zero. */
     public static boolean skipEmptyMovePackets = true;
+    /** Only send periodic entity velocity to entities whose client-side rendering needs it. */
+    public static boolean filterMotionPackets = true;
     public static boolean multithreadedTracker = false;
     public static int multithreadedTrackerThreads = 0;
 
@@ -70,6 +72,9 @@ public final class ShulkerConfig {
         skipEmptyMovePackets = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         skipEmptyMovePackets = bool("entity-tracker.skip-empty-move-packets", skipEmptyMovePackets,
             "Do not send entity movement packets that move and rotate the entity by zero.");
+        filterMotionPackets = ShulkerProfile.current() != ShulkerProfile.VANILLA;
+        filterMotionPackets = bool("entity-tracker.filter-motion-packets", filterMotionPackets,
+            "Send periodic velocity updates only for items, eyes of ender, squid, shulker bullets and fishing hooks. Knockback is always sent.");
         // Experimental upstream (Leaf); on by default here, except where vanilla timing matters.
         multithreadedTracker = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         multithreadedTracker = bool("entity-tracker.multithreaded", multithreadedTracker,

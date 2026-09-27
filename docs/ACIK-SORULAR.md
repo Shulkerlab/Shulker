@@ -54,6 +54,14 @@ istemcileri vanilla keep-alive zaten 30 saniyede düşürüyor; bu sınır, o 30
 dolmasını engelliyor. Normal oyuncular testte bu sınıra hiç yaklaşmadı.
 - **Şu anki seçim:** 32 MiB (`network.slow-client-protection.max-pending-megabytes`).
 
+### S8. Hız (motion) paketi filtresi varsayılan olarak açık
+Canvas'ın filtresi: periyodik hız güncellemesi yalnızca item, ender eye, squid, shulker mermisi ve
+oltaya gönderiliyor; knockback her zaman gönderiliyor. 40 bot + 1500 mob testinde oyuncu başına
+trafik %25 azaldı, MSPT değişmedi. Görsel etkisi gerçek bir istemciyle henüz kontrol edilmedi
+(bot'lar görüntü çizmiyor). Mob hareketlerinde takılma görürsen:
+`entity-tracker.filter-motion-packets: false`.
+- **Şu anki seçim:** vanilla dışındaki profillerde açık.
+
 ## Karar verilenler
 
 - **Dinamik view distance yok.** View distance, sunucu başlarken `server.properties`'ten okunan
