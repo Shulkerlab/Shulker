@@ -78,6 +78,20 @@ büyük önbellekli CCD). Test makinesinde (6 çekirdek, sınırlı kaynak) orta
 ve X3D seçimi yalnızca birim testleriyle doğrulandı (o donanım yok).
 - **Şu anki seçim:** `tick-thread-isolation=auto` (`shulker-launcher.properties`).
 
+### S11. TT20 gecikme telafisi yaması AGPL-3.0 lisanslı
+Leaf'in tüm yamaları alınırken TT20 "lag compensation" yaması da geldi. Bu yama AGPL-3.0-only
+lisanslı; Shulker ise GPLv3. GPLv3'ün 13. maddesi ikisinin birleştirilmesine izin veriyor, ama o
+kısım AGPL şartlarını koruyor: değiştirilmiş hâliyle çalışan bir sunucuda oyunculara kaynak kodunu
+sunma yükümlülüğü doğabilir. Özellik varsayılan kapalı ve oyun davranışını değiştiriyor (Leaf'te taş
+jeneratörlerini bozduğu için düzeltme almıştı).
+- **Şu anki seçim:** yama duruyor, özellik her profilde kapalı. Lisansı tamamen GPLv3 tutmak
+  istersen yama (`0174-TT20-Lag-compensation.patch`) kaldırılabilir.
+
+### S12. Leaf'in SIMD desteği için `--add-modules=jdk.incubator.vector`
+Pufferfish'in SIMD kodu (harita renk eşleme) bu modül olmadan kendini kapatıyor. Launcher şu an
+modülü eklemiyor; eklemek AOT önbelleğinin tam modül grafiğini bozabilir (bkz. boot.jar notu).
+- **Şu anki seçim:** eklenmiyor. Kazanç yalnızca harita çizen eklentilerde görülür.
+
 ## Karar verilenler
 
 - **Dinamik view distance yok.** View distance, sunucu başlarken `server.properties`'ten okunan

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="Shulker: a fast, self-tuning Minecraft server">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#120d1c"/>
+      <stop offset="0.55" stop-color="#211634"/>
+      <stop offset="1" stop-color="#34214f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.55" r="0.35">
+      <stop offset="0" stop-color="#9b6bd6" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#9b6bd6" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.04"/>
+    </pattern>
+    <clipPath id="card"><rect width="1280" height="320" rx="24"/></clipPath>
+  </defs>
+  <g clip-path="url(#card)">
+    <rect width="1280" height="320" fill="url(#bg)"/>
+    <rect width="1280" height="320" fill="url(#grid)"/>
+    <rect width="1280" height="320" fill="url(#glow)"/>
+
+    <!-- isometric shulker box -->
+    <g transform="translate(40 12)">
+      <ellipse cx="230" cy="262" rx="120" ry="22" fill="#000" opacity="0.35"/>
+      <!-- base -->
+      <polygon points="152,150 230,195 230,250 152,205" fill="#6b4696"/>
+      <polygon points="230,195 308,150 308,205 230,250" fill="#4f336f"/>
+      <!-- gap and head -->
+      <polygon points="152,138 230,183 308,138 308,152 230,197 152,152" fill="#1b1128"/>
+      <polygon points="200,172 230,189 260,172 260,180 230,197 200,180" fill="#e7d77a" opacity="0.9"/>
+      <!-- lid -->
+      <polygon points="230,48 308,93 230,138 152,93" fill="#b690e0"/>
+      <polygon points="152,93 230,138 230,178 152,133" fill="#8a5fbf"/>
+      <polygon points="230,138 308,93 308,133 230,178" fill="#6c4798"/>
+      <!-- lid rim highlight -->
+      <polyline points="152,93 230,48 308,93" fill="none" stroke="#e2cdf7" stroke-width="3" stroke-linejoin="round" opacity="0.7"/>
+      <polygon points="230,70 268,92 230,114 192,92" fill="#c7a4ee" opacity="0.55"/>
+    </g>
+
+    <!-- title -->
+    <text x="430" y="150" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="96" font-weight="800" fill="#ffffff" letter-spacing="-2">Shulker</text>
+    <text x="434" y="198" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="28" fill="#d9c7f5">A fast, self-tuning Minecraft server for 26.2</text>
+
+    <!-- chips -->
+    <g font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="600">
+      <g transform="translate(434 228)">
+        <rect width="150" height="36" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#b690e0" stroke-opacity="0.5"/>
+        <text x="75" y="24" text-anchor="middle" fill="#efe6fb">Built on Paper</text>
+      </g>
+      <g transform="translate(596 228)">
+        <rect width="196" height="36" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#b690e0" stroke-opacity="0.5"/>
+        <text x="98" y="24" text-anchor="middle" fill="#efe6fb">Bukkit · Paper · NMS</text>
+      </g>
+      <g transform="translate(804 228)">
+        <rect width="150" height="36" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#b690e0" stroke-opacity="0.5"/>
+        <text x="75" y="24" text-anchor="middle" fill="#efe6fb">.shulk worlds</text>
+      </g>
+      <g transform="translate(966 228)">
+        <rect width="118" height="36" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#b690e0" stroke-opacity="0.5"/>
+        <text x="59" y="24" text-anchor="middle" fill="#efe6fb">Java 25+</text>
+      </g>
+    </g>
+  </g>
+</svg>

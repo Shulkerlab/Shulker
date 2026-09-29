@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="402" viewBox="0 0 960 402" role="img" aria-label="Average tick time before and after Leaf, lower is better">
+<text x="0" y="28" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#8b6fd0">Average tick time (MSPT), lower is better</text>
+<g font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" fill="#7d8590"><rect x="0" y="44" width="14" height="14" rx="3" fill="#9aa1ab"/><text x="22" y="56">Shulker before Leaf</text><rect x="190" y="44" width="14" height="14" rx="3" fill="#8b5cf6"/><text x="212" y="56">Shulker with Leaf</text></g>
+<text x="0" y="116" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#7d8590">1500 villagers, cows, sheep</text>
+<rect x="300" y="92" width="435.3" height="20" rx="5" fill="#9aa1ab"/>
+<text x="743.3" y="107" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#7d8590">17.1 ms</text>
+<rect x="300" y="118" width="236.7" height="20" rx="5" fill="#8b5cf6"/>
+<text x="544.7" y="133" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#7d8590">9.3 ms</text>
+<text x="956" y="123" text-anchor="end" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#2ea043">-46%</text>
+<text x="0" y="190" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#7d8590">1000 husks pathfinding</text>
+<rect x="300" y="166" width="236.7" height="20" rx="5" fill="#9aa1ab"/>
+<text x="544.7" y="181" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#7d8590">9.3 ms</text>
+<rect x="300" y="192" width="190.9" height="20" rx="5" fill="#8b5cf6"/>
+<text x="498.9" y="207" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#7d8590">7.5 ms</text>
+<text x="956" y="197" text-anchor="end" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#2ea043">-19%</text>
+<text x="0" y="264" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#7d8590">40 players + 1500 mobs</text>
+<rect x="300" y="240" width="554.9" height="20" rx="5" fill="#9aa1ab"/>
+<text x="862.9" y="255" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#7d8590">21.8 ms</text>
+<rect x="300" y="266" width="435.3" height="20" rx="5" fill="#8b5cf6"/>
+<text x="743.3" y="281" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#7d8590">17.1 ms</text>
+<text x="956" y="271" text-anchor="end" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#2ea043">-22%</text>
+<text x="0" y="338" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#7d8590">16 players, normal world</text>
+<rect x="300" y="314" width="481.1" height="20" rx="5" fill="#9aa1ab"/>
+<text x="789.1" y="329" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="400" fill="#7d8590">18.9 ms</text>
+<rect x="300" y="340" width="460.7" height="20" rx="5" fill="#8b5cf6"/>
+<text x="768.7" y="355" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#7d8590">18.1 ms</text>
+<text x="956" y="345" text-anchor="end" font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#2ea043">-4%</text>
+</svg>
