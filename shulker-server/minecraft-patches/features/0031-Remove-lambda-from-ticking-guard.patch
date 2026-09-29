@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Martijn Muijsers <martijnmuijsers@live.nl>
+Date: Wed, 23 Nov 2022 23:13:56 +0100
+Subject: [PATCH] Remove lambda from ticking guard
+
+License: GPL-3.0-only (https://www.gnu.org/licenses/gpl-3.0.html)
+Gale - https://galemc.org
+
+Remove lambda for clear stacktrace and better for JIT
+
+This patch is based on the following patch:
+"Remove lambda from ticking guard"
+By: Paul Sauve <paul@technove.co>
+As part of: Airplane (https://github.com/TECHNOVE/Airplane)
+Licensed under: GPL-3.0-only (https://www.gnu.org/licenses/gpl-3.0.html)
+
+* Airplane copyright *
+
+Airplane
+Copyright (C) 2020 Technove LLC
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index f251f9387be478f9a9fe0cf3365bf69e90866272..4deed662fab1df6b8fe05c4ed9d677b4d143dba7 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -928,7 +928,19 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+                                     }
+ 
+                                     profiler.push("tick");
+-                                    this.guardEntityTick(this::tickNonPassenger, entity);
++                                    // Gale start - Airplane - remove lambda from ticking guard - copied from guardEntityTick
++                                    try {
++                                        this.tickNonPassenger(entity);
++                                    } catch (Throwable t) {
++                                        // Paper start - Prevent block entity and entity crashes
++                                        final String msg = String.format("Entity threw exception at %s:%s,%s,%s", io.papermc.paper.util.MCUtil.getLevelName(entity.level()), entity.getX(), entity.getY(), entity.getZ());
++                                        MinecraftServer.LOGGER.error(msg, t);
++                                        getCraftServer().getPluginManager().callEvent(new com.destroystokyo.paper.event.server.ServerExceptionEvent(new com.destroystokyo.paper.exception.ServerInternalException(msg, t))); // Paper - ServerExceptionEvent
++                                        entity.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
++                                        // Paper end - Prevent block entity and entity crashes
++                                    }
++                                    if (!dev.shulker.server.world.ParallelWorldTicking.enabled()) this.moonrise$midTickTasks(); // Paper - rewrite chunk system // Shulker - Paper's mid-tick tasks unless ticking in parallel
++                                    // Gale end - Airplane - remove lambda from ticking guard - copied from guardEntityTick
+                                     profiler.pop();
+                                 }
+                             }
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index 61d17aaa9802b75a51b03bc9ead0c568b4ce3747..c38bc5be74081d1845621e0d93f19394eca21dac 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -1584,10 +1584,10 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+             final String msg = String.format("Entity threw exception at %s:%s,%s,%s", io.papermc.paper.util.MCUtil.getLevelName(entity.level()), entity.getX(), entity.getY(), entity.getZ());
+             MinecraftServer.LOGGER.error(msg, t);
+             getCraftServer().getPluginManager().callEvent(new com.destroystokyo.paper.event.server.ServerExceptionEvent(new com.destroystokyo.paper.exception.ServerInternalException(msg, t))); // Paper - ServerExceptionEvent
+-            entity.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD);
++            entity.discard(org.bukkit.event.entity.EntityRemoveEvent.Cause.DISCARD); // Gale - Airplane - remove lambda from ticking guard - diff on change ServerLevel#tick
+             // Paper end - Prevent block entity and entity crashes
+         }
+-        if (!dev.shulker.server.world.ParallelWorldTicking.enabled()) this.moonrise$midTickTasks(); // Shulker - Paper's mid-tick tasks unless ticking in parallel (SparklyPaper runs them at the end of the tick)
++        if (!dev.shulker.server.world.ParallelWorldTicking.enabled()) this.moonrise$midTickTasks(); // Paper - rewrite chunk system // Gale - Airplane - remove lambda from ticking guard - diff on change ServerLevel#tick // Shulker - Paper's mid-tick tasks unless ticking in parallel (SparklyPaper runs them at the end of the tick)
+     }
+ 
+     // Paper start - Option to prevent armor stands from doing entity lookups

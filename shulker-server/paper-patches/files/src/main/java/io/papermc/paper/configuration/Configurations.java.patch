@@ -1,10 +1,20 @@
 --- a/src/main/java/io/papermc/paper/configuration/Configurations.java
 +++ b/src/main/java/io/papermc/paper/configuration/Configurations.java
+@@ -124,7 +_,8 @@
+             .path(configFile)
+             .build();
+         final ConfigurationNode node;
+-        if (Files.notExists(configFile)) {
++        final boolean newFile = Files.notExists(configFile); // Shulker - profile defaults
++        if (newFile) { // Shulker - profile defaults
+             node = CommentedConfigurationNode.root(loader.defaultOptions());
+             node.node(Configuration.VERSION_FIELD).raw(this.globalConfigVersion());
+             GlobalConfiguration.isFirstStart = true;
 @@ -134,6 +_,7 @@
          }
          this.applyGlobalConfigTransformations(node);
          final G instance = creator.apply(node);
-+        if (GlobalConfiguration.isFirstStart && instance instanceof GlobalConfiguration globalConfig) { dev.shulker.server.ShulkerProfile.applyGlobalDefaults(globalConfig); node.set(this.globalConfigClass, instance); } // Shulker - profile defaults
++        if (newFile && dev.shulker.server.ShulkerProfile.applyGlobalDefaults(instance)) node.set(this.globalConfigClass, instance); // Shulker - profile defaults (Paper and Gale)
          trySaveFileNode(loader, node, configFile.toString());
          return instance;
      }
@@ -12,7 +22,7 @@
          }
          this.applyWorldConfigTransformations(contextMap, node, null);
          final W instance = node.require(this.worldConfigClass);
-+        if (result.isNewFile() && instance instanceof WorldConfiguration worldConfig) dev.shulker.server.ShulkerProfile.applyWorldDefaults(worldConfig); // Shulker - profile defaults
++        if (result.isNewFile()) dev.shulker.server.ShulkerProfile.applyWorldDefaults(instance); // Shulker - profile defaults (Paper and Gale)
          node.set(this.worldConfigClass, instance);
          this.trySaveFileNode(loader, node, configFile.toString());
      }

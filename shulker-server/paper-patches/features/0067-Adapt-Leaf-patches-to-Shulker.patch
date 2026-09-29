@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Mon, 28 Sep 2026 08:38:22 +0300
+Subject: [PATCH] Adapt Leaf patches to Shulker
+
+Point Leaf's parallel world ticking and multithreaded tracker checks at
+Shulker's own implementations, and report metrics as Shulker.
+
+diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
+index bfec7d2d24d8f175f00610b6fa6406544d9b46de..9002d51c9a6bfcb3834458d5ebacc9f01f4a775b 100644
+--- a/src/main/java/com/destroystokyo/paper/Metrics.java
++++ b/src/main/java/com/destroystokyo/paper/Metrics.java
+@@ -593,7 +593,7 @@ public class Metrics {
+             boolean logFailedRequests = config.getBoolean("logFailedRequests", false);
+             // Only start Metrics, if it's enabled in the config
+             if (config.getBoolean("enabled", true)) {
+-                Metrics metrics = new Metrics("Leaf", serverUUID, logFailedRequests, Bukkit.getLogger()); // Gale - branding changes - metrics // Leaf - metrics
++                Metrics metrics = new Metrics("Shulker", serverUUID, logFailedRequests, Bukkit.getLogger()); // Gale - branding changes - metrics // Shulker - report as Shulker, not Leaf
+ 
+                 metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
+                     String minecraftVersion = Bukkit.getVersion();
+@@ -607,11 +607,11 @@ public class Metrics {
+                 final String implVersion = org.bukkit.craftbukkit.Main.class.getPackage().getImplementationVersion();
+                 if (implVersion != null) {
+                     final String buildOrHash = implVersion.substring(implVersion.lastIndexOf('-') + 1);
+-                    leafVersion = "git-Leaf-%s-%s".formatted(Bukkit.getServer().getMinecraftVersion(), buildOrHash); // Gale - branding changes - metrics // Leaf - metrics
++                    leafVersion = "git-Shulker-%s-%s".formatted(Bukkit.getServer().getMinecraftVersion(), buildOrHash); // Gale - branding changes - metrics // Leaf - metrics
+                 } else {
+                     leafVersion = "unknown"; // Gale - branding changes - metrics // Leaf - metrics
+                 }
+-                metrics.addCustomChart(new Metrics.SimplePie("leaf_version", () -> leafVersion)); // Gale - branding changes - metrics // Leaf - metrics
++                metrics.addCustomChart(new Metrics.SimplePie("shulker_version", () -> leafVersion)); // Gale - branding changes - metrics // Leaf - metrics
+ 
+                 metrics.addCustomChart(new Metrics.DrilldownPie("java_version", () -> {
+                     Map<String, Map<String, Integer>> map = new HashMap<>(2); // Gale - metrics - reduce HashMap capacity
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 22e244d63d13dffc1efa091ac8853a4fb224a958..20b670d6c1ba147b721afbd2568d1dbbbeba6b1c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -3141,7 +3141,7 @@ public final class CraftServer implements Server {
+     // Fish start - Parallel World Ticking API
+     @Override
+     public boolean isParallelWorldTickingEnabled() {
+-        return org.dreeam.leaf.config.modules.async.SparklyPaperParallelWorldTicking.enabled;
++        return dev.shulker.server.world.ParallelWorldTicking.enabled();
+     }
+     // Fish end - Parallel World Ticking API
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index e86b9957c6eb373850b71a3b260ab7ba3edfdd95..fa3f5e6899f91645b160eeb3a69700cb41746b2b 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -236,7 +236,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player, PluginMessa
+     private long lastPlayed = 0;
+     private boolean hasPlayedBefore = false;
+     private final ConversationTracker conversationTracker = new ConversationTracker();
+-    private final Map<UUID, Set<WeakReference<Plugin>>> invertedVisibilityEntities = org.dreeam.leaf.config.modules.async.MultithreadedTracker.enabled ? it.unimi.dsi.fastutil.objects.Object2ObjectMaps.synchronize(new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>()) : new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>(); // SparklyPaper - optimize canSee checks // Leaf - Multithreaded tracker
++    private final Map<UUID, Set<WeakReference<Plugin>>> invertedVisibilityEntities = dev.shulker.server.ShulkerConfig.multithreadedTracker ? it.unimi.dsi.fastutil.objects.Object2ObjectMaps.synchronize(new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>()) : new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>(); // SparklyPaper - optimize canSee checks // Leaf - Multithreaded tracker
+     private final Set<UUID> unlistedEntities = new HashSet<>(); // Paper - Add Listing API for Player
+     private static final WeakHashMap<Plugin, WeakReference<Plugin>> pluginWeakReferences = new WeakHashMap<>();
+     private int hash = 0;
+diff --git a/src/main/java/org/spigotmc/WatchdogThread.java b/src/main/java/org/spigotmc/WatchdogThread.java
+index 761af5be3eba62bd6995887a504e2f2a34e476b7..08888094bda68b1fedba0475e99a6ab61cb123af 100644
+--- a/src/main/java/org/spigotmc/WatchdogThread.java
++++ b/src/main/java/org/spigotmc/WatchdogThread.java
+@@ -113,7 +113,7 @@ public class WatchdogThread extends ca.spottedleaf.moonrise.common.util.TickThre
+                 logger.log(Level.SEVERE, "------------------------------");
+ 
+                 // Leaf start - dump pwt thread
+-                if (org.dreeam.leaf.config.modules.async.SparklyPaperParallelWorldTicking.enabled) {
++                if (dev.shulker.server.world.ParallelWorldTicking.enabled()) {
+                     logger.log(Level.SEVERE, "Parallel world ticking thread dump");
+                     for (Thread thread : org.apache.commons.lang3.ThreadUtils.getAllThreads()) {
+                         if (thread instanceof ServerLevelTickThread tickThread) {

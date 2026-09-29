@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dreeam <61569423+Dreeam-qwq@users.noreply.github.com>
+Date: Tue, 27 Feb 2024 03:17:10 -0500
+Subject: [PATCH] Remove useless creating stats json bases on player name logic
+
+
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index 8a6831f22f9eaa9ca32ea826767d105e87937b02..3596c184da4c17923fe9408ccc2bcb28365a9a31 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -1458,6 +1458,8 @@ public abstract class PlayerList {
+             return uuidStatsFile;
+         }
+ 
++        // Leaf start - Remove useless creating stats json bases on player name logic
++        /*
+         String playerNameStatsFile = gameProfile.name() + ".json";
+         if (FileUtil.isValidPathSegment(playerNameStatsFile)) {
+             Path playerNameStatsPath = statFolder.resolve(playerNameStatsFile);
+@@ -1470,6 +1472,8 @@ public abstract class PlayerList {
+                 }
+             }
+         }
++        */
++        // Leaf end - Remove useless creating stats json bases on player name logic
+ 
+         return uuidStatsFile;
+     }

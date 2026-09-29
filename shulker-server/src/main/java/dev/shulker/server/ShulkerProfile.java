@@ -22,8 +22,8 @@ import org.slf4j.Logger;
  * profile; this class picks game-server defaults for it.
  *
  * <p>Profiles only shape the <em>initial</em> configuration: values are applied when
- * server.properties or paper-world-defaults.yml is created for the first time. From then on
- * the files belong to the server owner and are never touched again.
+ * server.properties, spigot.yml, the Paper and Gale configs or leaf-global.yml are created for
+ * the first time. From then on the files belong to the server owner and are never touched again.
  *
  * <p>For the performance profiles, changes are chosen to be invisible to normal gameplay;
  * anything that changes game mechanics noticeably stays a manual choice. {@link #VANILLA} goes
@@ -142,25 +142,97 @@ public enum ShulkerProfile {
         }
     }
 
-    // ---- paper-global.yml ------------------------------------------------------------------
+    // ---- leaf-global.yml -------------------------------------------------------------------
 
-    /** Called once, when paper-global.yml is first created. */
-    public static void applyGlobalDefaults(final GlobalConfiguration config) {
-        if (current() != VANILLA) {
+    /**
+     * Seeds a not-yet-existing leaf-global.yml. Leaf keeps the values it finds and adds every
+     * other key with its default.
+     *
+     * <p>The performance profiles turn on Leaf's optimisations that keep vanilla results: most
+     * ship disabled in Leaf. Mob AI throttling (DAB), spawn throttling and the faster RNG change
+     * gameplay and stay off.
+     */
+    public static void prepareLeafConfig(final File file) {
+        if (file == null || file.exists()) {
             return;
         }
-        LOGGER.info("Applying Shulker 'vanilla' profile: exploits and dupes are allowed");
-        config.unsupportedSettings.allowPistonDuplication = true;
-        config.unsupportedSettings.allowHeadlessPistons = true;
-        config.unsupportedSettings.allowPermanentBlockBreakExploits = true;
-        config.unsupportedSettings.allowUnsafeEndPortalTeleportation = true;
-        config.unsupportedSettings.skipTripwireHookPlacementValidation = true;
+        final String yaml = current() == VANILLA ? """
+            # Seeded by the Shulker 'vanilla' profile.
+            async:
+              # Mob spawning computed off the tick thread sees the world one tick late.
+              async-mob-spawning:
+                enabled: false
+            """ : """
+            # Seeded by the Shulker '%s' profile: optimisations that keep vanilla results.
+            async:
+              async-playerdata-save:
+                enabled: true
+            performance:
+              sleeping-block-entity: true
+              optimize-mob-despawn: true
+              optimize-mob-spawning: true
+              optimize-random-tick: true
+              optimize-waypoint: true
+              optimize-entity-activation: true
+              cache-biome:
+                enabled: true
+                mob-spawning: true
+                advancements: true
+            """.formatted(current().id());
+        try {
+            Files.writeString(file.toPath(), yaml, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            System.err.println("[Shulker] Could not write profile defaults to " + file + ": " + e.getMessage());
+        }
     }
 
-    // ---- paper-world-defaults.yml ----------------------------------------------------------
+    // ---- paper-global.yml, gale-global.yml ----------------------------------------------------
 
-    /** Called once, when paper-world-defaults.yml is first created. */
-    public static void applyWorldDefaults(final WorldConfiguration config) {
+    /**
+     * Called once, when a global config file is first created.
+     *
+     * @return whether {@code config} was changed
+     */
+    public static boolean applyGlobalDefaults(final Object config) {
+        if (current() != VANILLA) {
+            return false;
+        }
+        if (config instanceof org.galemc.gale.configuration.GaleGlobalConfiguration gale) {
+            gale.smallOptimizations.reducedIntervals.updateEntityLineOfSight = 1; // every tick, like vanilla
+            return true;
+        }
+        if (!(config instanceof GlobalConfiguration paper)) {
+            return false;
+        }
+        LOGGER.info("Applying Shulker 'vanilla' profile: exploits and dupes are allowed");
+        paper.unsupportedSettings.allowPistonDuplication = true;
+        paper.unsupportedSettings.allowHeadlessPistons = true;
+        paper.unsupportedSettings.allowPermanentBlockBreakExploits = true;
+        paper.unsupportedSettings.allowUnsafeEndPortalTeleportation = true;
+        paper.unsupportedSettings.skipTripwireHookPlacementValidation = true;
+        return true;
+    }
+
+    // ---- paper-world-defaults.yml, gale-world-defaults.yml -----------------------------------
+
+    /** Called once, when a world defaults config file is first created. */
+    public static void applyWorldDefaults(final Object config) {
+        if (config instanceof WorldConfiguration paper) {
+            applyWorldDefaults(paper);
+        } else if (config instanceof org.galemc.gale.configuration.GaleWorldConfiguration gale && current() == VANILLA) {
+            // Gale's reduced intervals and chunk-load limits, back to vanilla.
+            final var optimizations = gale.smallOptimizations;
+            optimizations.reducedIntervals.checkStuckInWall = 1;
+            optimizations.reducedIntervals.villagerItemRepickup = -1;
+            optimizations.maxProjectileChunkLoads.perTick = -1;
+            optimizations.maxProjectileChunkLoads.perProjectile.max = -1;
+            optimizations.loadChunks.toSpawnPhantoms = true;
+            optimizations.loadChunks.toActivateClimbingEntities = true;
+            gale.gameplayMechanics.entityWakeUpDurationRatioStandardDeviation = 0;
+        }
+    }
+
+    private static void applyWorldDefaults(final WorldConfiguration config) {
         final ShulkerProfile profile = current();
         LOGGER.info("Applying Shulker '{}' profile defaults to the new world configuration", profile.id());
 

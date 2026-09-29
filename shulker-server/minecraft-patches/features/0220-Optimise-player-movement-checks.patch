@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Taiyou06 <kaandindar21@gmail.com>
+Date: Sat, 10 May 2025 23:18:17 +0200
+Subject: [PATCH] Optimise player movement checks
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 13f1fb9d6fb10458d8bb6fd28b3d5848db3d0527..d93df2a94e8758b02ca4bc1dc6bb203d9f2d3762 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1257,7 +1257,7 @@ public abstract class Entity
+             }
+             this.boundingBoxChanged = false;
+             // Gale end - VMP - skip entity move if movement is zero
+-            delta = this.maybeBackOffFromEdge(delta, moverType);
++            if (!org.dreeam.leaf.config.modules.opt.OptimizePlayerMovementProcessing.enabled) delta = this.maybeBackOffFromEdge(delta, moverType); // Leaf - Optimise player movement checks
+             Vec3 movement = this.collide(delta);
+             double movementLength = movement.lengthSqr();
+             if (movementLength > 1.0E-7 || delta.lengthSqr() - movementLength < 1.0E-7) {

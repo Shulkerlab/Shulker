@@ -1,0 +1,148 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Martijn Muijsers <martijnmuijsers@live.nl>
+Date: Wed, 23 Nov 2022 21:05:47 +0100
+Subject: [PATCH] Gale configuration
+
+License: GPL-3.0-only (https://www.gnu.org/licenses/gpl-3.0.html)
+Gale - https://galemc.org
+
+This patch is based on the following patch:
+"Paper config files"
+By: Jake Potrebic <jake.m.potrebic@gmail.com>
+As part of: Paper (https://github.com/PaperMC/Paper)
+Licensed under: GPL-3.0-only (https://www.gnu.org/licenses/gpl-3.0.html)
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 0333b9cd11c588b578bae4869920281a2b7641a4..4517dcf78be198e8501c5a97ba7e033d215a4b80 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -333,6 +333,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+     public volatile boolean abnormalExit; // Paper - Improved watchdog support
+     public volatile Thread shutdownThread; // Paper - Improved watchdog support
+     public final io.papermc.paper.configuration.PaperConfigurations paperConfigurations; // Paper - add paper configuration files
++    public final org.galemc.gale.configuration.GaleConfigurations galeConfigurations; // Gale - Gale configuration
+     public boolean isIteratingOverLevels = false; // Paper - Throw exception on world create while being ticked
+     private final Set<String> pluginsBlockingSleep = new java.util.HashSet<>(); // Paper - API to allow/disallow tick sleeping
+     public static final long SERVER_INIT = System.nanoTime(); // Paper - Lag compensation
+@@ -581,6 +582,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         Runtime.getRuntime().addShutdownHook(new org.bukkit.craftbukkit.util.ServerShutdownThread(this));
+         // CraftBukkit end
+         this.paperConfigurations = services.paper().configurations(); // Paper - add paper configuration files
++        this.galeConfigurations = services.galeConfigurations(); // Gale - Gale configuration
+     }
+ 
+     protected abstract boolean initServer() throws IOException;
+diff --git a/net/minecraft/server/Services.java b/net/minecraft/server/Services.java
+index c3c23a152c098e4dddfe0d0d10676fc20a35f0e0..88450cce423d483f5ebda4df6b83905c4c8dd6b6 100644
+--- a/net/minecraft/server/Services.java
++++ b/net/minecraft/server/Services.java
+@@ -19,6 +19,7 @@ public record Services(
+     UserNameToIdResolver nameToIdCache,
+     ProfileResolver profileResolver
+     , @Nullable PaperServices paper // Paper
++    , org.galemc.gale.configuration.@Nullable GaleConfigurations galeConfigurations // Gale - Gale configuration
+ ) {
+     public static final String USERID_CACHE_FILE = "usercache.json";
+ 
+@@ -29,14 +30,25 @@ public record Services(
+     ) {}
+ 
+     public Services(MinecraftSessionService sessionService, ServicesKeySet servicesKeySet, GameProfileRepository profileRepository, UserNameToIdResolver nameToIdCache, ProfileResolver profileResolver) {
+-        this(sessionService, servicesKeySet, profileRepository, nameToIdCache, profileResolver, null);
++        // Gale start - Gale configuration
++        this(sessionService, servicesKeySet, profileRepository, nameToIdCache, profileResolver, null, null);
+     }
++    public Services(MinecraftSessionService sessionService, ServicesKeySet servicesKeySet, GameProfileRepository profileRepository, UserNameToIdResolver nameToIdCache, ProfileResolver profileResolver, @javax.annotation.Nullable PaperServices paper) throws Exception {
++        this(sessionService, servicesKeySet, profileRepository, nameToIdCache, profileResolver, paper, org.galemc.gale.configuration.GaleConfigurations.setup(paper.configurations().getGlobalConfigFile()));
++    }
++    // Gale end - Gale configuration
+ 
+     @Override
+     public PaperServices paper() {
+         return java.util.Objects.requireNonNull(this.paper);
+     }
+     // Paper end - add paper configuration files
++    // Gale start - Gale configuration
++    @Override
++    public org.galemc.gale.configuration.GaleConfigurations galeConfigurations() {
++        return java.util.Objects.requireNonNull(this.galeConfigurations);
++    }
++    // Gale end - Gale configuration
+ 
+     public static Services create(final YggdrasilAuthenticationService serviceAccess, final File nameCacheDir, final File userCacheFile, final joptsimple.OptionSet options) throws Exception { // Paper - add options to load paper config files; add userCacheFile parameter
+         MinecraftSessionService sessionService = serviceAccess.createMinecraftSessionService();
+@@ -51,7 +63,10 @@ public record Services(
+             new io.papermc.paper.profile.PaperFilledProfileCache()
+         );
+         ProfileResolver profileResolver = new ProfileResolver.Cached(sessionService, profileCache, paperServices.filledProfileCache());
+-        return new Services(sessionService, serviceAccess.getServicesKeySet(), profileRepository, profileCache, profileResolver, paperServices);
++        // Gale start - Gale configuration
++        org.galemc.gale.configuration.GaleConfigurations galeConfigurations = org.galemc.gale.configuration.GaleConfigurations.setup(configDirPath);
++        return new Services(sessionService, serviceAccess.getServicesKeySet(), profileRepository, profileCache, profileResolver, paperServices, galeConfigurations);
++        // Gale end - Gale configuration
+         // Paper end - load paper config files from cli options
+     }
+ 
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index 70949a910a69d36f1b9303d4bbbc1bac2ff86630..2338284878c2173db25b141587e0df00ec9ada82 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -253,6 +253,10 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         this.paperConfigurations.initializeGlobalConfiguration(this.registryAccess());
+         this.paperConfigurations.initializeWorldDefaultsConfiguration(this.registryAccess());
+         // Paper end - initialize global and world-defaults configuration
++        // Gale start - Gale configuration
++        galeConfigurations.initializeGlobalConfiguration(this.registryAccess());
++        galeConfigurations.initializeWorldDefaultsConfiguration(this.registryAccess());
++        // Gale end - Gale configuration
+         this.server.spark.enableEarlyIfRequested(); // Paper - spark
+         // Paper start - fix converting txt to json file; convert old users earlier after PlayerList creation but before file load/save
+         if (this.convertOldUsers()) {
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 2bc6fd3a3151dfa12622fc26852d7cbb903fd61c..21a6069612466f3fab2df7c8b182cf701e62aa20 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -643,7 +643,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         savedDataStorage.set(io.papermc.paper.world.saveddata.PaperWorldPDC.TYPE, loadedWorldData.pdc() == null ? io.papermc.paper.world.saveddata.PaperWorldPDC.TYPE.constructor().get() : loadedWorldData.pdc());
+         final GameRules gameRules = new GameRules(server.getWorldData().enabledFeatures(), savedDataStorage.computeIfAbsent(net.minecraft.world.level.gamerules.GameRuleMap.TYPE));
+         this.gameRules = gameRules;
+-        super(levelData, dimension, server.registryAccess(), levelStem.type(), false, isDebug, biomeZoomSeed, server.getMaxChainedNeighborUpdates(), loadedWorldData.bukkitName(), gen, biomeProvider, env, spigotConfig -> server.paperConfigurations.createWorldConfig(io.papermc.paper.configuration.PaperConfigurations.createWorldContextMap(server.storageSource.getDimensionPath(dimension), dimension.identifier(), spigotConfig, server.registryAccess(), gameRules)), executor); // Paper - create paper world configs // Paper - Anti-Xray - Pass executor
++        super(levelData, dimension, server.registryAccess(), levelStem.type(), false, isDebug, biomeZoomSeed, server.getMaxChainedNeighborUpdates(), loadedWorldData.bukkitName(), gen, biomeProvider, env, spigotConfig -> server.paperConfigurations.createWorldConfig(io.papermc.paper.configuration.PaperConfigurations.createWorldContextMap(server.storageSource.getDimensionPath(dimension), dimension.identifier(), spigotConfig, server.registryAccess(), gameRules)), spigotConfig -> server.galeConfigurations.createWorldConfig(io.papermc.paper.configuration.PaperConfigurations.createWorldContextMap(server.storageSource.getDimensionPath(dimension), dimension.identifier(), spigotConfig, server.registryAccess(), gameRules)), executor); // Paper - create paper world configs // Paper - Anti-Xray - Pass executor // Gale - Gale configuration
+         this.weatherData = savedDataStorage.computeIfAbsent(WeatherData.TYPE);
+         this.weatherData.setLevel(this);
+         this.typeKey = typeKey;
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index 3b3de62b89ea8f83ae84fe7224a91c55d52b90fc..08a8b3984008ccd1a474f38135f454394b34873e 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -173,6 +173,13 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     // Paper end - add paper world config
+ 
+     public io.papermc.paper.redstone.RedstoneWireTurbo turbo = new io.papermc.paper.redstone.RedstoneWireTurbo((net.minecraft.world.level.block.RedStoneWireBlock) net.minecraft.world.level.block.Blocks.REDSTONE_WIRE); // SparklyPaper - parallel world ticking (moved to world)
++    // Gale start - Gale configuration
++    private final org.galemc.gale.configuration.GaleWorldConfiguration galeConfig;
++    public org.galemc.gale.configuration.GaleWorldConfiguration galeConfig() {
++        return this.galeConfig;
++    }
++    // Gale end - Gale configuration
++
+     public final org.purpurmc.purpur.PurpurWorldConfig purpurConfig; // Purpur - Purpur config files
+     public static @Nullable BlockPos lastPhysicsProblem; // Spigot
+     public final Map<ServerExplosion.CacheKey, Float> explosionDensityCache = new java.util.HashMap<>(); // Paper - Optimize explosions
+@@ -884,6 +891,8 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+         org.bukkit.World.Environment environment, // Paper
+         java.util.function.Function<org.spigotmc.SpigotWorldConfig, // Spigot - create per world config
+         io.papermc.paper.configuration.WorldConfiguration> paperWorldConfigCreator, // Paper - create paper world config
++        java.util.function.Function<org.spigotmc.SpigotWorldConfig, // Gale - Gale configuration
++        org.galemc.gale.configuration.GaleWorldConfiguration> galeWorldConfigCreator, // Gale - Gale configuration
+         java.util.concurrent.Executor executor // Paper - Anti-Xray
+     ) {
+         // Paper start - getblock optimisations - cache world height/sections
+@@ -899,6 +908,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+         this.spigotConfig = new org.spigotmc.SpigotWorldConfig(bukkitName, worldKey); // Spigot
+         this.paperConfig = paperWorldConfigCreator.apply(this.spigotConfig); // Paper - create paper world config
+         this.purpurConfig = new org.purpurmc.purpur.PurpurWorldConfig(bukkitName, environment, worldKey); // Purpur - Purpur config files
++        this.galeConfig = galeWorldConfigCreator.apply(this.spigotConfig); // Gale - Gale configuration
+         this.playerBreedingCooldowns = this.getNewBreedingCooldownCache(); // Purpur - Add adjustable breeding cooldown to config
+         this.generator = generator;
+         this.world = new CraftWorld((ServerLevel) this, worldKey, biomeProvider, environment);

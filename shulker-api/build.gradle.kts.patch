@@ -13,6 +13,23 @@
  }
  
  val annotationsVersion = "26.0.2"
+@@ -56,7 +_,7 @@
+     // api dependencies are listed transitively to API consumers
+     api("com.google.guava:guava:33.6.0-jre")
+     api("com.google.code.gson:gson:2.14.0")
+-    api("org.yaml:snakeyaml:2.2")
++    api("org.yaml:snakeyaml:2.6") // Shulker - Leaf: needed for LoaderOptions#setWarnOnDuplicateKeys
+     api("org.joml:joml:1.10.8") {
+         isTransitive = false // https://github.com/JOML-CI/JOML/issues/352
+     }
+@@ -64,6 +_,7 @@
+     api("org.apache.logging.log4j:log4j-api:$log4jVersion")
+     api("org.slf4j:slf4j-api:$slf4jVersion")
+     api("com.mojang:brigadier:1.3.10")
++    api("io.sentry:sentry:8.43.0") // Shulker - Pufferfish Sentry integration
+ 
+     // Deprecate bungeecord-chat in favor of adventure
+     api("net.md-5:bungeecord-chat:$bungeeCordChatVersion") {
 @@ -105,10 +_,10 @@
      testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
  
@@ -70,3 +87,14 @@
                  include("**/doc-files/**")
              }
              into("build/docs/javadoc")
+@@ -251,6 +_,10 @@
+ // Compile tests with -parameters for better junit parameterized test names
+ tasks.compileTestJava {
+     options.compilerArgs.add("-parameters")
++}
++
++tasks.withType<JavaCompile>().configureEach {
++    options.compilerArgs.add("--add-modules=jdk.incubator.vector") // Shulker - Gale/Pufferfish SIMD support
+ }
+ 
+ val scanJarForBadCalls by tasks.registering(io.papermc.paperweight.tasks.ScanJarForBadCalls::class) {

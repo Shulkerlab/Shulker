@@ -12,14 +12,14 @@ the oversized-chunk/header-recalculation methods become public so the
 .shulk region can delegate them to a legacy .mca file during migration.
 
 diff --git a/net/minecraft/world/level/chunk/storage/RegionFile.java b/net/minecraft/world/level/chunk/storage/RegionFile.java
-index 3de7fd2b084c38e72d7a6bc416880a881f514ad3..7c602af55ccbd14c8ec758846c6324ae8cc2c643 100644
+index 1616ab8a89602a3cdc00a9b8608e42f316356273..18fb4c54b4e7e9627c28c44e0ad22d6c00396954 100644
 --- a/net/minecraft/world/level/chunk/storage/RegionFile.java
 +++ b/net/minecraft/world/level/chunk/storage/RegionFile.java
 @@ -130,7 +130,7 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
          return this.recalculateCount.get();
      }
  
--    boolean recalculateHeader() throws IOException {
+-    public boolean recalculateHeader() throws IOException {
 +    public boolean recalculateHeader() throws IOException { // Shulker - .shulk region format - overridable, callable on the legacy file
          if (!this.canRecalcHeader) {
              return false;
@@ -58,12 +58,12 @@ index 3de7fd2b084c38e72d7a6bc416880a881f514ad3..7c602af55ccbd14c8ec758846c6324ae
          return (x & 31) + (z & 31) * 32;
      }
  
--    synchronized boolean isOversized(int x, int z) {
+-    public synchronized boolean isOversized(int x, int z) {
 +    public synchronized boolean isOversized(int x, int z) { // Shulker - .shulk region format - overridable, callable on the legacy file
          return this.oversized[getChunkIndex(x, z)] == 1;
      }
  
--    synchronized void setOversized(int x, int z, boolean oversized) throws IOException {
+-    public synchronized void setOversized(int x, int z, boolean oversized) throws IOException {
 +    public synchronized void setOversized(int x, int z, boolean oversized) throws IOException { // Shulker - .shulk region format - overridable, callable on the legacy file
          final int offset = getChunkIndex(x, z);
          boolean previous = this.oversized[offset] == 1;
@@ -72,7 +72,7 @@ index 3de7fd2b084c38e72d7a6bc416880a881f514ad3..7c602af55ccbd14c8ec758846c6324ae
          return this.path.getParent().resolve(this.path.getFileName().toString().replaceAll("\\.mca$", "") + "_oversized_" + x + "_" + z + ".nbt");
      }
  
--    synchronized net.minecraft.nbt.CompoundTag getOversizedData(int x, int z) throws IOException {
+-    public synchronized net.minecraft.nbt.CompoundTag getOversizedData(int x, int z) throws IOException {
 +    public synchronized net.minecraft.nbt.CompoundTag getOversizedData(int x, int z) throws IOException { // Shulker - .shulk region format - overridable, callable on the legacy file
          Path file = getOversizedFile(x, z);
          try (DataInputStream out = new DataInputStream(new java.io.BufferedInputStream(new java.util.zip.InflaterInputStream(Files.newInputStream(file))))) {

@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hayanesuru <hayanesuru@outlook.jp>
+Date: Sat, 9 Aug 2025 14:56:22 +0900
+Subject: [PATCH] remove shouldTickBlocksAt check
+
+
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index 8d42a46bd99521e26a626a455179933015cf1082..735b5fa63453356a505f5bffea54b53ee7c49994 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -1584,7 +1584,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+         // Paper end - Fix MC-117075 use removeAll
+             if (ticker.isRemoved()) {
+                 ((org.dreeam.leaf.util.list.BlockEntityTickersList) this.blockEntityTickers).markAsRemoved(tickerIndex); // Paper - Fix MC-117075; use removeAll // SparklyPaper - optimize block entity removals
+-            } else if (tickBlockEntities && this.shouldTickBlocksAt(ticker.getPos())) {
++            } else if (tickBlockEntities /*&& this.shouldTickBlocksAt(ticker.getPos())*/) { // Leaf - remove shouldTickBlocksAt check - duplicate at BoundTickingBlockEntity#tick
+                 ticker.tick();
+                 // Paper start - rewrite chunk system
+                 if ((++tickedEntities & 7) == 0) {

@@ -127,7 +127,7 @@ public final class ShulkRegionFile extends RegionFile {
     }
 
     @Override
-    protected void write(final ChunkPos pos, final ByteBuffer data) {
+    public void write(final ChunkPos pos, final ByteBuffer data) {
         throw new UnsupportedOperationException(".shulk regions take uncompressed chunk data, not .mca sectors");
     }
 

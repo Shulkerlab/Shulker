@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hayanesuru <hayanesuru@outlook.jp>
+Date: Fri, 6 Jun 2025 20:46:10 +0900
+Subject: [PATCH] optimize random tick
+
+
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index 1196662700b9fdcd9b1971bbbc79fdc2d3f055df..d8bc10bac3c0b92e38affebd31f4c2976e7d8ac9 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -657,7 +657,13 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+         }
+ 
+         profiler.popPush("tickTickingChunks");
+-        this.iterateTickingChunksFaster(); // Paper - chunk tick iteration optimizations
++        // Leaf start - optimize random tick
++        if (org.dreeam.leaf.config.modules.opt.OptimizeRandomTick.enabled) {
++            this.level.randomTickSystem.tick(this.level);
++        } else {
++            this.iterateTickingChunksFaster(); // Paper - chunk tick iteration optimisations
++        }
++        // Leaf end - optimize random tick
+         if (doMobSpawning) {
+             profiler.popPush("customSpawners");
+             this.level.tickCustomSpawners(this.spawnEnemies);
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 6e3cf2a8715ff7bd2f7ad682abacac16f3d715cb..26e91f896d6be4efc3df3e2d827f59b8468876dd 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -1058,6 +1058,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+ 
+     private final org.dreeam.leaf.world.DespawnMap despawnMap = new org.dreeam.leaf.world.DespawnMap(); // Leaf - optimize despawn
+     public final org.dreeam.leaf.world.NatureSpawnChunkMap natureSpawnChunkMap = new org.dreeam.leaf.world.NatureSpawnChunkMap(); // Leaf - optimize mob spawning
++    public final org.dreeam.leaf.world.RandomTickSystem randomTickSystem = new org.dreeam.leaf.world.RandomTickSystem(); // Leaf - optimize random tick
+     public void tickChunk(final LevelChunk chunk, final int tickSpeed) {
+         final net.minecraft.world.level.levelgen.BitRandomSource simpleRandom = this.simpleRandom; // Paper - optimise random ticking // Leaf - Faster random generator - upcasting
+         ChunkPos chunkPos = chunk.getPos();
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index cf7861a9db54fc328b540330d2c502ec5c576af5..2c4da3200165c7a9aaa14be6634202b6ba5e4e4d 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -160,6 +160,11 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+     }
+     // Gale end - Airplane - optimize random calls in chunk ticking - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
+ 
++    // Leaf start - optimize random tick
++    public boolean leaf$tickingBlocksDirty = true;
++    public int[] leaf$tickingCount = {};
++    // Leaf end - optimize random tick
++
+     public LevelChunk(final Level level, final ChunkPos pos) {
+         this(level, pos, UpgradeData.EMPTY, new LevelChunkTicks<>(), new LevelChunkTicks<>(), 0L, null, null, null);
+     }
+@@ -423,6 +428,11 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         if (oldState == state) {
+             return null;
+         }
++        // Leaf start - optimize random tick
++        if (oldState.isRandomlyTicking() != state.isRandomlyTicking()) {
++            leaf$tickingBlocksDirty = true;
++        }
++        // Leaf end - optimize random tick
+ 
+         Block newBlock = state.getBlock();
+         this.heightmaps.get(Heightmap.Types.MOTION_BLOCKING).update(localX, y, localZ, state);

@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hayanesuru <hayanesuru@outlook.jp>
+Date: Sat, 9 Aug 2025 15:43:06 +0900
+Subject: [PATCH] optimize isStateClimbable
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index a45c8898cb6c155e4ab97d041732064b5b04a5b8..2a369b0f508d3335719918f03890f70a63baaa5e 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1517,7 +1517,7 @@ public abstract class Entity
+     }
+ 
+     private boolean isStateClimbable(final BlockState state) {
+-        return state.is(BlockTags.CLIMBABLE) || state.is(Blocks.POWDER_SNOW);
++        return (state.tagFlag & org.dreeam.leaf.util.BlockMasks.IS_STATE_CLIMBABLE) != 0; // Leaf - optimize isStateClimbable
+     }
+ 
+     private boolean vibrationAndSoundEffectsFromBlock(

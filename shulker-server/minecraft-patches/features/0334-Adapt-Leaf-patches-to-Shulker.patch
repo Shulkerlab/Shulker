@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Mon, 28 Sep 2026 08:38:22 +0300
+Subject: [PATCH] Adapt Leaf patches to Shulker
+
+Leaf's parallel world ticking, multithreaded tracker and async
+pathfinding are replaced by Shulker's own ports, which are configured in
+shulker.yml.
+
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index cd872c44977725962c2c2c6e8d0e4a64333c2519..4ad48e8ee6efb0ae934eb31515f2eca6dd4b25f6 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -1874,7 +1874,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     public final org.dreeam.leaf.world.EntityPushState pushEntityQueryState = new org.dreeam.leaf.world.EntityPushState();
+     public boolean forEachEntity(final @Nullable Entity except, final AABB bb, final Predicate<? super Entity> selector,
+                                  final AbortableIterationConsumer<Entity> consumer) {
+-        if (org.dreeam.leaf.config.modules.async.SparklyPaperParallelWorldTicking.enabled) ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, bb, "Cannot getEntities asynchronously"); // Leaf - SparklyPaper - parallel world ticking (additional concurrency issues logs)
++        if (dev.shulker.server.world.ParallelWorldTicking.enabled()) ca.spottedleaf.moonrise.common.util.TickThread.ensureTickThread(this, bb, "Cannot getEntities asynchronously"); // Leaf - SparklyPaper - parallel world ticking (additional concurrency issues logs)
+         Profiler.get().incrementCounter("getEntities");
+ 
+         if (((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemLevel)this).moonrise$getEntityLookup().forEachEntity(except, bb, selector, consumer)) {

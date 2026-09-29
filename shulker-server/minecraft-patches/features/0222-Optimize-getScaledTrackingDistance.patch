@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: hayanesuru <hayanesuru@outlook.jp>
+Date: Sat, 17 May 2025 19:01:50 +0900
+Subject: [PATCH] Optimize getScaledTrackingDistance
+
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index c1e530a767b49a530c362d1b9eb9409e6f9c5d87..52e5309b3f91b36c3561d382ca69571808423533 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -982,11 +982,15 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+ 
+     @Override
+     public int getScaledTrackingDistance(final int range) {
+-        return this.entityBroadcastRangePercentage() * range / 100;
++        // Leaf start - Optimize getScaledTrackingDistance
++        int p = this.getProperties().entityBroadcastRangePercentage.get();
++        if (p == 100) return range;
++        return p * range / 100;
++        // Leaf end - Optimize getScaledTrackingDistance
+     }
+ 
+     public int entityBroadcastRangePercentage() {
+-        return this.getProperties().entityBroadcastRangePercentage.get();
++        return this.getProperties().entityBroadcastRangePercentage.get(); // Leaf - Optimize getScaledTrackingDistance - diff on change
+     }
+ 
+     public void setEntityBroadcastRangePercentage(final int range) {

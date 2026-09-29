@@ -95,6 +95,9 @@ subprojects {
     repositories {
         mavenCentral()
         maven(paperMavenPublicUrl)
+        maven("https://maven.leafmc.one/snapshots/") { // Leaf config library (ConfigurationMaster-API) only
+            content { includeGroup("com.github.thatsmusic99") }
+        }
     }
 }
 
