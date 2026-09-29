@@ -8,7 +8,10 @@
 #   villagers    (default) villagers, cows and sheep: brains, POI searches, wandering
 #   pathfinding  husks hunting villagers standing on pillars: unreachable targets make
 #                every mob search the whole path budget
-# Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations).
+#   natural      a normal world at night: BENCH_BOTS players (default 16) spread over 16000
+#                blocks, natural mob spawning, random ticks; no arena, the mob count is ignored
+# Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations), and LEAF_YML to a
+# file to use as config/leaf-global.yml.
 # BENCH_BOTS=n adds n headless players walking around the arena (entity tracking, chunk sending).
 # BENCH_WORLDS=3 splits the mobs over the overworld, the nether roof and the end island, for
 # measuring parallel world ticking.
@@ -20,9 +23,13 @@ source "$root/scripts/test-env.sh"
 jar="$(realpath "${1:-$(ls "$root"/build/libs/shulker-*.jar | head -n1)}")"
 mobs="${2:-1500}"
 work="$(realpath -m "${3:-$root/run-bench}")"
+# Config overrides may be given relative to the current directory.
+[[ -n "${SHULKER_YML:-}" ]] && SHULKER_YML="$(realpath "$SHULKER_YML")"
+[[ -n "${LEAF_YML:-}" ]] && LEAF_YML="$(realpath "$LEAF_YML")"
 port="${BENCH_PORT:-25598}"
 warmup=45
 scenario="${BENCH_SCENARIO:-villagers}"
+[[ $scenario == natural ]] && { warmup=120; BENCH_BOTS="${BENCH_BOTS:-16}"; }
 measure=60
 half=48 # arena is (2*half) blocks wide, centred on 0,0
 floor=-60 # surface of a default flat world
@@ -32,14 +39,15 @@ mkdir -p "$work"
 cd "$work"
 echo "eula=true" > eula.txt
 cat > server.properties <<EOF
-level-type=minecraft\:flat
+$([[ $scenario == natural ]] && echo 'level-seed=shulker' || echo 'level-type=minecraft\:flat')
 online-mode=false
 server-port=$port
 pause-when-empty-seconds=-1
 allow-flight=true
 max-players=1000
+$([[ $scenario == natural ]] && printf 'view-distance=6\nsimulation-distance=6')
 spawn-protection=0
-difficulty=$([[ $scenario == pathfinding ]] && echo easy || echo peaceful)
+difficulty=$(case $scenario in pathfinding) echo easy ;; natural) echo normal ;; *) echo peaceful ;; esac)
 EOF
 # Bots all connect from 127.0.0.1.
 printf 'settings:\n  connection-throttle: -1\n' > bukkit.yml
@@ -57,6 +65,7 @@ world-settings:
       flying-monsters: 0
 EOF
 [[ -n "${SHULKER_YML:-}" ]] && cp "$SHULKER_YML" shulker.yml
+[[ -n "${LEAF_YML:-}" ]] && mkdir -p config && cp "$LEAF_YML" config/leaf-global.yml
 # BENCH_JFR=file.jfr records a CPU profile of the measurement window.
 if [[ -n "${BENCH_JFR:-}" ]]; then
     launcher_props . "-XX:StartFlightRecording:delay=$((warmup + 15))s,duration=$((measure - 10))s,dumponexit=true,settings=profile,filename=$(realpath -m "$BENCH_JFR")"
@@ -78,9 +87,12 @@ for ((i = 0; i < 300; i++)); do
     sleep 1
 done
 
-send "gamerule spawn_mobs false"
 send "gamerule advance_time false"
 send "gamerule advance_weather false"
+if [[ $scenario == natural ]]; then
+    send "time set night" # natural spawning runs; the arena and the summoned mobs are skipped
+else
+send "gamerule spawn_mobs false"
 send "time set day"
 send "forceload add -$((half + 1)) -$((half + 1)) $half $half"
 worlds="${BENCH_WORLDS:-1}"
@@ -129,11 +141,17 @@ for ((n = 0; n < mobs; n++)); do
         *) send "execute in minecraft:the_end run summon minecraft:$type $x 70 $z" ;;      # main island
     esac
 done
+fi
 
 bots_pid=
 if [[ "${BENCH_BOTS:-0}" -gt 0 ]]; then
     limited python3 "$root/scripts/mc-bots.py" "$BENCH_BOTS" $((warmup + measure + 5)) 127.0.0.1 "$port" $((half - 8)) &
     bots_pid=$!
+fi
+if [[ $scenario == natural ]]; then
+    # Bots stand where they are put (they only walk inside the arena radius around 0,0).
+    sleep $((BENCH_BOTS / 5 + 10))
+    send "spreadplayers 0 0 1000 8000 false @a"
 fi
 
 sleep "$warmup"
@@ -150,4 +168,4 @@ trap - EXIT
 # /mspt prints avg/min/max for 5s, 10s and 1m windows; take the last report's 1m window.
 report=$(grep -A1 'Server tick times' server.log | grep -vE 'Server tick times|^--' | tail -n1)
 one_minute=$(echo "$report" | sed -E 's/\x1b\[[0-9;]*m//g' | grep -oE '[0-9.]+/[0-9.]+/[0-9.]+' | tail -n1)
-echo "mobs=$count_line/$mobs  mspt(avg/min/max, 1m)=$one_minute"
+if [[ $scenario == natural ]]; then echo "natural, ${BENCH_BOTS} bots  mspt(avg/min/max, 1m)=$one_minute"; else echo "mobs=$count_line/$mobs  mspt(avg/min/max, 1m)=$one_minute"; fi
