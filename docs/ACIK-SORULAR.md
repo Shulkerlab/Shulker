@@ -92,7 +92,29 @@ Pufferfish'in SIMD kodu (harita renk eşleme) bu modül olmadan kendini kapatıy
 modülü eklemiyor; eklemek AOT önbelleğinin tam modül grafiğini bozabilir (bkz. boot.jar notu).
 - **Şu anki seçim:** eklenmiyor. Kazanç yalnızca harita çizen eklentilerde görülür.
 
+### S13. C2ME native matematik yaması alınmadı
+DivineMC'nin C2ME native matematik yaması, repoda hazır derlenmiş gelen `.so`/`.dll` dosyalarını
+yüklüyor. Kaynağından kendimiz derlemediğimiz native kodu jar'a koymak tedarik zinciri riski; ayrıca
+yalnızca x86_64'te çalışıyor. Gerekirse C2ME'nin kaynağından kendi derlememizle eklenebilir.
+- **Şu anki seçim:** yok.
+
+### S14. Profillerin açtığı bazı Leaf ayarları Leaf'te "deneysel" işaretli
+optimize-despawn, optimize-entity-activation, optimize-mob-spawning, optimize-random-tick,
+optimize-waypoint ve density-function-compiler açılışta "experimental" uyarısı veriyor. Eklenti
+testleri geçiyor; density-function-compiler ayrıca dünya üretimi eşlik testinden geçti. Diğerleri
+için oyun davranışını ölçen ayrı bir test yok.
+- **Şu anki seçim:** vanilla dışındaki profillerde açık.
+
+### S15. Lazy paket gönderimi ProtocolLib ile denenmedi
+`network.lazy-packet-scheduling` bir eklenti event loop'u sardığında (ProtocolLib'in yaptığı)
+kendini o bağlantı için kapatıyor. ProtocolLib'in 26.2 sürümü olmadığı için bu yol gerçek eklentiyle
+denenemedi; PacketEvents ve ViaVersion ile test geçiyor.
+- **Şu anki seçim:** açık. Sorun görülürse `network.lazy-packet-scheduling: false`.
+
 ## Karar verilenler
 
+- **Dünya üretimini değiştiren yamalar alınmaz.** `scripts/worldgen-parity-test.sh` bu yüzden
+  var: C2ME Aquifer yeniden yazımı ve StructureLayoutOptimizer araziyi/deneme odalarını değiştirdiği
+  için çıkarıldı (2026-09-29).
 - **Dinamik view distance yok.** View distance, sunucu başlarken `server.properties`'ten okunan
   sabit bir değer olarak kalıyor. Profiller yalnızca ilk kurulumda bu değeri belirliyor.

@@ -218,6 +218,10 @@ final class JvmPlanner {
 
         args.add("-Dshulker.profile=" + config.profile().id());
         args.add("-Dshulker.launcher=managed");
+        // Netty 4.2's default adaptive allocator contends on locks when many connections send at
+        // once: the pooled one halved the Netty threads' CPU time with 40 players (same packets).
+        // extra-jvm-args come later, so a -Dio.netty.allocator.type there still wins.
+        args.add("-Dio.netty.allocator.type=pooled");
     }
 
     /** Adds an -XX option only when this JVM build knows it, so an unknown flag never blocks startup. */

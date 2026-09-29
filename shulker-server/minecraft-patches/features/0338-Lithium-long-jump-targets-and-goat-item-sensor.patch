@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NONPLAYT <nonplay@bxteam.org>
+Date: Tue, 29 Sep 2026 05:36:03 +0300
+Subject: [PATCH] Lithium: long jump targets and goat item sensor
+
+Ported via DivineMC ("Optimize entities", GPL-3.0). Lithium is
+LGPL-3.0-only.
+
+Long jump targets (goats, frogs) are kept grouped by squared distance, so
+picking one weighted by squared distance, as vanilla does, no longer
+builds a list of every block in range. Goats never use what the nearest
+item sensor finds, so their brain does not run it.
+
+The rest of DivineMC's patch (brain task lists, memory change counting,
+activity bit sets, sorted living entities) is already covered by
+Shulker's brain patches and Leaf's radix sort.
+
+diff --git a/net/minecraft/world/entity/ai/behavior/LongJumpToRandomPos.java b/net/minecraft/world/entity/ai/behavior/LongJumpToRandomPos.java
+index fe7403770b6c117cc2b9e5a3ab9f8554deed703c..30a73c005b635ece67ca2559ce9574a52fad527c 100644
+--- a/net/minecraft/world/entity/ai/behavior/LongJumpToRandomPos.java
++++ b/net/minecraft/world/entity/ai/behavior/LongJumpToRandomPos.java
+@@ -129,6 +129,12 @@ public class LongJumpToRandomPos<E extends Mob> extends Behavior<E> {
+         int mobX = mobPos.getX();
+         int mobY = mobPos.getY();
+         int mobZ = mobPos.getZ();
++        // Shulker start - Lithium - long jump targets grouped by distance (via DivineMC)
++        if (this.maxLongJumpWidth < 128 && this.maxLongJumpHeight < 128) {
++            this.jumpCandidates = dev.shulker.server.util.LongJumpChoiceList.forCenter(mobPos, (byte) this.maxLongJumpWidth, (byte) this.maxLongJumpHeight);
++            return;
++        }
++        // Shulker end - Lithium - long jump targets grouped by distance
+         this.jumpCandidates = BlockPos.betweenClosedStream(
+                 mobX - this.maxLongJumpWidth,
+                 mobY - this.maxLongJumpHeight,
+@@ -185,6 +191,11 @@ public class LongJumpToRandomPos<E extends Mob> extends Behavior<E> {
+     }
+ 
+     protected Optional<LongJumpToRandomPos.PossibleJump> getJumpCandidate(final ServerLevel level) {
++        // Shulker start - Lithium - long jump targets grouped by distance (same distribution as WeightedRandom)
++        if (this.jumpCandidates instanceof dev.shulker.server.util.LongJumpChoiceList choices) {
++            return Optional.ofNullable(choices.removeRandomWeightedByDistanceSq(level.getRandom()));
++        }
++        // Shulker end - Lithium - long jump targets grouped by distance
+         Optional<LongJumpToRandomPos.PossibleJump> randomItem = WeightedRandom.getRandomItem(
+             level.getRandom(), this.jumpCandidates, LongJumpToRandomPos.PossibleJump::weight
+         );
+diff --git a/net/minecraft/world/entity/animal/goat/Goat.java b/net/minecraft/world/entity/animal/goat/Goat.java
+index dec995a56614b432577928a3bf6814a8d7846d8a..485f3762a845d9c08a791a2a0703e9065536768e 100644
+--- a/net/minecraft/world/entity/animal/goat/Goat.java
++++ b/net/minecraft/world/entity/animal/goat/Goat.java
+@@ -163,7 +163,11 @@ public class Goat extends Animal {
+ 
+     @Override
+     protected Brain<Goat> makeBrain(final Brain.Packed packedBrain) {
+-        return BRAIN_PROVIDER.makeBrain(this, packedBrain);
++        // Shulker start - Lithium - goats never use what the item sensor finds (via DivineMC)
++        Brain<Goat> brain = BRAIN_PROVIDER.makeBrain(this, packedBrain);
++        brain.sensors.remove(SensorType.NEAREST_ITEMS);
++        return brain;
++        // Shulker end - Lithium - goats never use what the item sensor finds
+     }
+ 
+     public static AttributeSupplier.Builder createAttributes() {

@@ -18,6 +18,9 @@ origin. Shulker as a whole is distributed under the [GNU GPL v3](LICENSE).
 | [Lithium](https://github.com/CaffeineMC/lithium) | reduced Brain memory lookups | LGPL-3.0 |
 | [Canvas](https://github.com/CraftCanvasMC/Canvas) | entity motion packet filter | GPL-3.0 |
 | [SparklyPaper](https://github.com/SparklyPower/SparklyPaper) by MrPowerGamerBR | parallel world ticking, per-world MSPT, skipping `distanceToSqr` in ServerEntity | see note |
+| [DivineMC](https://github.com/BX-Team/DivineMC) by NONPLAYT | parallel sensor phase (`dev.shulker.server.async.sensing`); carrier for the C2ME and Lithium ports below | GPL-3.0 |
+| [C2ME](https://github.com/RelativityMC/C2ME-fabric) by ishland | End biome cache, NBT write cache limit | MIT |
+| [Lithium](https://github.com/CaffeineMC/lithium) | long jump target list (`dev.shulker.server.util.LongJumpChoiceList`), goat item sensor | LGPL-3.0 |
 | [zstd-jni](https://github.com/luben/zstd-jni) | zstd for `.shulk` | BSD-2-Clause |
 
 **SparklyPaper:** the repository publishes no license file. Its patches modify Paper's GPL-3.0

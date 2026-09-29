@@ -31,6 +31,8 @@ public final class ShulkerConfig {
     /** Disconnect clients that stop reading instead of buffering for them without limit. */
     public static boolean slowClientProtection = true;
     public static int slowClientMaxPendingMegabytes = 32;
+    /** Queue packets that are not flushed without waking the connection's thread (Paper PR 10172). */
+    public static boolean lazyPacketScheduling = true;
 
     // ---- entity tracking -------------------------------------------------------------------
     /** Skip entity move packets whose position and rotation deltas are all zero. */
@@ -49,6 +51,12 @@ public final class ShulkerConfig {
     public static int coldRecompressionAfterHours = 24;
     public static int coldRecompressionChunksPerSecond = 20;
     public static double coldRecompressionMaxMspt = 30.0;
+    public static long chunkDataCacheSoftLimit = 8192L;
+    public static long chunkDataCacheLimit = 32678L;
+
+    // ---- world generation ------------------------------------------------------------------
+    public static boolean endBiomeCache = true;
+    public static int endBiomeCacheCapacity = 1024;
 
     // ---- parallel world ticking ------------------------------------------------------------
     public static boolean parallelWorldTicking = false;
@@ -60,6 +68,10 @@ public final class ShulkerConfig {
     public static int asyncPathfindingThreads = 0;
     public static int asyncPathfindingKeepAliveSeconds = 60;
     public static String asyncPathfindingRejectPolicy = "caller_runs";
+
+    // ---- mob sensors -----------------------------------------------------------------------
+    public static boolean asyncSensors = true;
+    public static int asyncSensorThreads = 0;
     public static int asyncPathfindingQueueSize = 0;
 
     private ShulkerConfig() {
@@ -83,6 +95,10 @@ public final class ShulkerConfig {
             "Disconnect players whose connection cannot keep up, instead of buffering their data until the server runs out of memory.");
         slowClientMaxPendingMegabytes = integer("network.slow-client-protection.max-pending-megabytes", slowClientMaxPendingMegabytes,
             "Disconnect when this much data is waiting to be sent to one player. Clients that stop reading entirely are already dropped by the 30 s keep-alive timeout.");
+        lazyPacketScheduling = bool("network.lazy-packet-scheduling", lazyPacketScheduling,
+            "Hand packets that are not flushed right away to the connection's thread without waking it up; they go out with the next flush. "
+                + "Connections whose event loop a plugin has wrapped (ProtocolLib) are detected and keep the normal path. "
+                + "About 40% less CPU time on the network threads with 40 players.");
 
         skipEmptyMovePackets = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         skipEmptyMovePackets = bool("entity-tracker.skip-empty-move-packets", skipEmptyMovePackets,
@@ -115,6 +131,18 @@ public final class ShulkerConfig {
         coldRecompressionMaxMspt = dbl("storage.cold-recompression.max-mspt", coldRecompressionMaxMspt,
             "Pause while the server's average tick time is above this many milliseconds.");
 
+        chunkDataCacheSoftLimit = integer("storage.chunk-data-cache.soft-limit", (int) chunkDataCacheSoftLimit,
+            "Chunks waiting in memory to be written before the writer starts catching up (C2ME).");
+        chunkDataCacheLimit = integer("storage.chunk-data-cache.limit", (int) chunkDataCacheLimit,
+            "Chunks waiting in memory to be written before writes are forced to disk, so pregeneration cannot run out of memory (C2ME).");
+
+        endBiomeCache = ShulkerProfile.current() != ShulkerProfile.VANILLA;
+        endBiomeCache = bool("world-generation.end-biome-cache.enabled", endBiomeCache,
+            "Cache End biome lookups during generation (C2ME). Assumes End biomes do not change with height, as in vanilla; "
+                + "turn off for datapacks whose End noise does.");
+        endBiomeCacheCapacity = integer("world-generation.end-biome-cache.capacity", endBiomeCacheCapacity,
+            "Biome entries kept per generation thread.");
+
         parallelWorldTicking = bool("parallel-world-ticking.enabled", parallelWorldTicking,
             "EXPERIMENTAL (SparklyPaper). Tick worlds in parallel. Only helps servers with several busy worlds. "
                 + "Plugins that touch another world from an event can crash the server (e.g. NoCheatPlus movement checks), "
@@ -134,6 +162,13 @@ public final class ShulkerConfig {
             "Idle worker threads are stopped after this many seconds.");
         asyncPathfindingQueueSize = integer("async-pathfinding.queue-size", asyncPathfindingQueueSize,
             "Pending path requests before the queue is full (0 = threads x 256).");
+        // Sensors run before any entity moves in the tick instead of between them; vanilla keeps the order.
+        asyncSensors = ShulkerProfile.current() != ShulkerProfile.VANILLA;
+        asyncSensors = bool("async-sensors.enabled", asyncSensors,
+            "Run mob sensors (scans for nearby players, mobs, items) on worker threads before entities tick, while the tick thread waits (DivineMC). "
+                + "Off while parallel world ticking is on.");
+        asyncSensorThreads = integer("async-sensors.threads", asyncSensorThreads,
+            "Worker threads (0 = a quarter of the CPU cores).");
         asyncPathfindingRejectPolicy = string("async-pathfinding.reject-policy", asyncPathfindingRejectPolicy,
             "When the queue is full: caller_runs computes the new path on the tick thread, flush_all computes every queued path there.");
 

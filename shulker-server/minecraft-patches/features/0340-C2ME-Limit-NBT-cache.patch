@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NONPLAYT <nonplay@bxteam.org>
+Date: Tue, 29 Sep 2026 05:36:03 +0300
+Subject: [PATCH] C2ME: Limit NBT cache
+
+Ported via DivineMC (GPL-3.0). Based on C2ME's MixinStorageIoWorker by
+ishland (https://github.com/RelativityMC/C2ME-fabric, MIT). Caps the chunk
+data waiting in memory for the writer; storage.chunk-data-cache in
+shulker.yml.
+
+diff --git a/net/minecraft/world/level/chunk/storage/IOWorker.java b/net/minecraft/world/level/chunk/storage/IOWorker.java
+index 7e205616bec7fc7973b81ca36b8f640a5b61691f..e318f3b9a0c43e8e61eb2e21b26c2e1f4c77d112 100644
+--- a/net/minecraft/world/level/chunk/storage/IOWorker.java
++++ b/net/minecraft/world/level/chunk/storage/IOWorker.java
+@@ -213,7 +213,38 @@ public class IOWorker implements AutoCloseable, ChunkScanAccess {
+         });
+     }
+ 
++    // Shulker start - C2ME: Limit NBT cache
++    private void checkHardLimit() {
++        if (this.pendingWrites.size() >= dev.shulker.server.ShulkerConfig.chunkDataCacheLimit) {
++            LOGGER.warn("Chunk data cache size exceeded hard limit ({} >= {}), forcing writes to disk (you can increase storage.chunk-data-cache.limit in shulker.yml)", this.pendingWrites.size(), dev.shulker.server.ShulkerConfig.chunkDataCacheLimit);
++            while (this.pendingWrites.size() >= dev.shulker.server.ShulkerConfig.chunkDataCacheSoftLimit * 0.75) {
++                writeResult0();
++            }
++        }
++    }
++
++    private void writeResult0() {
++        java.util.Iterator<java.util.Map.Entry<net.minecraft.world.level.ChunkPos, net.minecraft.world.level.chunk.storage.IOWorker.PendingStore>> iterator = this.pendingWrites.entrySet().iterator();
++        if (iterator.hasNext()) {
++            java.util.Map.Entry<ChunkPos, IOWorker.PendingStore> entry = iterator.next();
++            iterator.remove();
++            this.runStore(entry.getKey(), entry.getValue());
++        }
++    }
++    // Shulker end - C2ME: Limit NBT cache
++
+     private void storePendingChunk() {
++        // Shulker start - C2ME: Limit NBT cache
++        if (!this.pendingWrites.isEmpty()) {
++            checkHardLimit();
++            if (this.pendingWrites.size() >= dev.shulker.server.ShulkerConfig.chunkDataCacheSoftLimit) {
++                int writeFrequency = Math.min(1, (this.pendingWrites.size() - (int) dev.shulker.server.ShulkerConfig.chunkDataCacheSoftLimit) / 16);
++                for (int i = 0; i < writeFrequency; i++) {
++                    writeResult0();
++                }
++            }
++        }
++        // Shulker end - C2ME: Limit NBT cache
+         Entry<ChunkPos, IOWorker.PendingStore> entry = this.pendingWrites.pollFirstEntry();
+         if (entry != null) {
+             this.runStore(entry.getKey(), entry.getValue());

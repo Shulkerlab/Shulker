@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Tue, 29 Sep 2026 05:27:54 +0300
+Subject: [PATCH] Lazy packet scheduling unless the event loop is wrapped
+
+Paper PR 10172 (via Leaf) hands packets that are not flushed to the
+connection's thread with lazyExecute, which does not wake it up. Leaf
+keeps it off because ProtocolLib wraps the event loop and lazyExecute on
+the cached real loop would bypass it; Shulker turns it on per connection
+when the channel still returns the real loop. 40 players + 1500 mobs:
+about 40% less CPU time on the Netty threads.
+
+diff --git a/net/minecraft/network/Connection.java b/net/minecraft/network/Connection.java
+index 064ef558131eff4547139a3479bd0e50202ee0b3..69496b41c5a8c39ec0836ba90ee30c80b7af9da3 100644
+--- a/net/minecraft/network/Connection.java
++++ b/net/minecraft/network/Connection.java
+@@ -527,7 +527,8 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             this.doSendPacket(packet, listener, flush);
+         } else {
+             // Paper start - optimise packets that are not flushed
+-            if (!flush && org.dreeam.leaf.config.modules.network.OptimizeNonFlushPacketSending.enabled) {
++            if (!flush && (org.dreeam.leaf.config.modules.network.OptimizeNonFlushPacketSending.enabled
++                || dev.shulker.server.ShulkerConfig.lazyPacketScheduling && this.channel.eventLoop() == this.eventLoop)) { // Shulker - on unless a plugin wrapped the event loop (ProtocolLib), which lazyExecute would bypass
+                 this.eventLoop.lazyExecute(() -> this.doSendPacket(packet, listener, false));
+             } else
+                 // Paper end - optimise packets that are not flushed

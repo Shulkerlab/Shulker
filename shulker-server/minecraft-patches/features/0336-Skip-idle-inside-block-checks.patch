@@ -1,0 +1,102 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: WinTone01 <mertbayinma792@gmail.com>
+Date: Tue, 29 Sep 2026 05:27:54 +0300
+Subject: [PATCH] Skip idle inside-block checks
+
+The effect collector no longer walks its per-type lists when nothing was
+collected, and an entity that did not move and has only air in its box
+skips the block scan, which finds nothing in that case. Both keep
+vanilla results; together they were 5-10% of the tick with many mobs.
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index b15dd6ef0498249e59ce95dfdb4f22f8721ea98d..f93b0442404c859b557a89752ad36e35dd4253ba 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -1969,6 +1969,12 @@ public abstract class Entity
+         // Leaf start - optimize checkInsideBlocks calls
+         final ServerLevel level = (ServerLevel) this.level();
+         AABB deflatedBoundingBoxAtTarget = this.getBoundingBox().move(to.subtract(this.position())).deflate(1.0E-5F);
++        // Shulker start - an entity that did not move and has only air around it touches nothing
++        if (to.subtract(from).lengthSqr() < Mth.square(1.0E-5F) && shulker$onlyAir(level, deflatedBoundingBoxAtTarget)
++            && !level.getServer().debugSubscribers().hasAnySubscriberFor(DebugSubscriptions.ENTITY_BLOCK_INTERSECTIONS)) {
++            return 1; // what the full scan returns for a stationary entity
++        }
++        // Shulker end - an entity that did not move and has only air around it touches nothing
+         final net.minecraft.world.level.chunk.ChunkAccess[] cachedChunk = {null};
+         final long[] cachedChunkPos = { Long.MIN_VALUE };
+         boolean movedFar = from.distanceToSqr(to) > Mth.square(0.9999900000002526);
+@@ -2056,6 +2062,29 @@ public abstract class Entity
+     }
+     // Leaf end - optimize checkInsideBlocks calls
+ 
++    // Shulker start - an entity that did not move and has only air around it touches nothing
++    /** Whether every loaded block the box covers is air; unloaded blocks count as air, like the full scan. */
++    private static boolean shulker$onlyAir(final ServerLevel level, final AABB box) {
++        final int minX = Mth.floor(box.minX), minY = Mth.floor(box.minY), minZ = Mth.floor(box.minZ);
++        final int maxX = Mth.floor(box.maxX), maxY = Mth.floor(box.maxY), maxZ = Mth.floor(box.maxZ);
++        final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
++        for (int x = minX; x <= maxX; x++) {
++            for (int z = minZ; z <= maxZ; z++) {
++                final net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunkIfLoaded(x >> 4, z >> 4);
++                if (chunk == null) {
++                    continue;
++                }
++                for (int y = minY; y <= maxY; y++) {
++                    if (!chunk.getBlockState(pos.set(x, y, z)).isAir()) {
++                        return false;
++                    }
++                }
++            }
++        }
++        return true;
++    }
++    // Shulker end - an entity that did not move and has only air around it touches nothing
++
+     private void debugBlockIntersection(final ServerLevel level, final BlockPos pos, final boolean insideBlock, final boolean insideFluid) {
+         DebugEntityBlockIntersection type;
+         if (insideFluid) {
+diff --git a/net/minecraft/world/entity/InsideBlockEffectApplier.java b/net/minecraft/world/entity/InsideBlockEffectApplier.java
+index 149e2a11534aaffe00b7304898c4f1eb932651c2..5217b9da41aec1531e32c8e0b8959311d63a643d 100644
+--- a/net/minecraft/world/entity/InsideBlockEffectApplier.java
++++ b/net/minecraft/world/entity/InsideBlockEffectApplier.java
+@@ -38,6 +38,7 @@ public interface InsideBlockEffectApplier {
+         private final List<Consumer<Entity>>[] afterEffectsInStep = new List[APPLY_ORDER.length];
+         private final it.unimi.dsi.fastutil.objects.ObjectArrayList<Consumer<Entity>> finalEffects = new it.unimi.dsi.fastutil.objects.ObjectArrayList<>();
+         private int lastStep = -1;
++        private boolean pending; // Shulker - skip flushing when nothing was collected
+ 
+         public StepBasedCollector() {
+             for (int i = 0; i < APPLY_ORDER.length; i++) {
+@@ -71,6 +72,12 @@ public interface InsideBlockEffectApplier {
+         }
+ 
+         private void flushStep() {
++            // Shulker start - skip flushing when nothing was collected
++            if (!this.pending) {
++                return;
++            }
++            this.pending = false;
++            // Shulker end - skip flushing when nothing was collected
+             final int len = APPLY_ORDER.length;
+             final List<Consumer<Entity>>[] beforeArr = this.beforeEffectsInStep;
+             final Consumer<Entity>[] effectArr = this.effectsInStep;
+@@ -104,16 +111,19 @@ public interface InsideBlockEffectApplier {
+         @Override
+         public void apply(final InsideBlockEffectType type) {
+             effectsInStep[type.ordinal()] = recorded(type);
++            this.pending = true; // Shulker - skip flushing when nothing was collected
+         }
+ 
+         @Override
+         public void runBefore(final InsideBlockEffectType type, final Consumer<Entity> effect) {
+             beforeEffectsInStep[type.ordinal()].add(effect);
++            this.pending = true; // Shulker - skip flushing when nothing was collected
+         }
+ 
+         @Override
+         public void runAfter(final InsideBlockEffectType type, final Consumer<Entity> effect) {
+             afterEffectsInStep[type.ordinal()].add(effect);
++            this.pending = true; // Shulker - skip flushing when nothing was collected
+         }
+         // Leaf end - optimize checkInsideBlocks calls
+ 

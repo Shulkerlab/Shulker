@@ -149,7 +149,8 @@ public enum ShulkerProfile {
      * other key with its default.
      *
      * <p>The performance profiles turn on Leaf's optimisations that keep vanilla results: most
-     * ship disabled in Leaf. Mob AI throttling (DAB), spawn throttling and the faster RNG change
+     * ship disabled in Leaf. The density function compiler was checked with
+     * scripts/worldgen-parity-test.sh. Mob AI throttling (DAB), spawn throttling and the faster RNG change
      * gameplay and stay off.
      */
     public static void prepareLeafConfig(final File file) {
@@ -163,7 +164,7 @@ public enum ShulkerProfile {
               async-mob-spawning:
                 enabled: false
             """ : """
-            # Seeded by the Shulker '%s' profile: optimisations that keep vanilla results.
+            # Seeded by the Shulker '{profile}' profile: optimisations that keep vanilla results.
             async:
               async-playerdata-save:
                 enabled: true
@@ -174,11 +175,14 @@ public enum ShulkerProfile {
               optimize-random-tick: true
               optimize-waypoint: true
               optimize-entity-activation: true
+              # C2ME: compiles world generation to bytecode. Same terrain (worldgen parity test), a quarter to a third faster generation.
+              density-function-compiler:
+                enabled: true
               cache-biome:
                 enabled: true
                 mob-spawning: true
                 advancements: true
-            """.formatted(current().id());
+            """.replace("{profile}", current().id()); // not formatted(): comments may contain a percent sign
         try {
             Files.writeString(file.toPath(), yaml, StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -254,17 +258,20 @@ public enum ShulkerProfile {
             case SURVIVAL, VANILLA -> {
             }
             case SKYBLOCK -> {
+                throttleFailedSpawns(config);
                 // Island mob farms pile entities into one block.
                 config.collisions.maxEntityCollisions = 2;
                 // Redstone-heavy farms; Alternate Current is behaviour-compatible and much cheaper.
                 config.misc.redstoneImplementation = WorldConfiguration.Misc.RedstoneImplementation.ALTERNATE_CURRENT;
             }
             case MINIGAME -> {
+                throttleFailedSpawns(config);
                 config.collisions.maxEntityCollisions = 2;
                 config.misc.redstoneImplementation = WorldConfiguration.Misc.RedstoneImplementation.ALTERNATE_CURRENT;
                 config.entities.armorStands.doCollisionEntityLookups = false;
             }
             case LOBBY -> {
+                throttleFailedSpawns(config);
                 config.collisions.maxEntityCollisions = 2;
                 config.misc.redstoneImplementation = WorldConfiguration.Misc.RedstoneImplementation.ALTERNATE_CURRENT;
                 // Lobby armor stands are holograms and decorations.
@@ -272,6 +279,19 @@ public enum ShulkerProfile {
                 config.entities.armorStands.doCollisionEntityLookups = false;
                 config.tickRates.grassSpread = 4;
             }
+        }
+    }
+
+    /**
+     * A chunk where a mob category failed to spawn this many times in a row (void around
+     * islands, water for monsters) is only tried once a second for that category, until a spawn
+     * succeeds there again. Not in the survival profile: slow survival mob farms keep their rates.
+     */
+    private static void throttleFailedSpawns(final WorldConfiguration config) {
+        final var throttle = config.entities.spawning.spawningThrottle;
+        throttle.failedAttemptsThreshold = new io.papermc.paper.configuration.type.number.IntOr.Disabled(java.util.OptionalInt.of(100));
+        for (net.minecraft.world.entity.MobCategory category : net.minecraft.world.level.NaturalSpawner.SPAWNING_CATEGORIES) {
+            throttle.throttledTicksPerSpawn.put(category, 20);
         }
     }
 
