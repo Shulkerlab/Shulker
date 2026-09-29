@@ -10,6 +10,7 @@
 #                every mob search the whole path budget
 #   natural      a normal world at night: BENCH_BOTS players (default 16) spread over 16000
 #                blocks, natural mob spawning, random ticks; no arena, the mob count is ignored
+#   worldgen     generation speed: time to generate 1024 new chunks of a normal world
 # Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations), and LEAF_YML to a
 # file to use as config/leaf-global.yml.
 # BENCH_BOTS=n adds n headless players walking around the arena (entity tracking, chunk sending).
@@ -39,7 +40,7 @@ mkdir -p "$work"
 cd "$work"
 echo "eula=true" > eula.txt
 cat > server.properties <<EOF
-$([[ $scenario == natural ]] && echo 'level-seed=shulker' || echo 'level-type=minecraft\:flat')
+$([[ $scenario == natural || $scenario == worldgen ]] && echo 'level-seed=shulker' || echo 'level-type=minecraft\:flat')
 online-mode=false
 server-port=$port
 pause-when-empty-seconds=-1
@@ -66,11 +67,11 @@ world-settings:
 EOF
 [[ -n "${SHULKER_YML:-}" ]] && cp "$SHULKER_YML" shulker.yml
 [[ -n "${LEAF_YML:-}" ]] && mkdir -p config && cp "$LEAF_YML" config/leaf-global.yml
-# BENCH_JFR=file.jfr records a CPU profile of the measurement window.
+# BENCH_JFR=file.jfr records a CPU profile of the measurement window; BENCH_JVM_ARGS adds JVM flags.
 if [[ -n "${BENCH_JFR:-}" ]]; then
-    launcher_props . "-XX:StartFlightRecording:delay=$((warmup + 15))s,duration=$((measure - 10))s,dumponexit=true,settings=profile,filename=$(realpath -m "$BENCH_JFR")"
+    launcher_props . ${BENCH_JVM_ARGS:-} "-XX:FlightRecorderOptions:stackdepth=256" "-XX:StartFlightRecording:delay=$((warmup + 15))s,duration=$((measure - 10))s,dumponexit=true,settings=profile,filename=$(realpath -m "$BENCH_JFR")"
 else
-    launcher_props .
+    launcher_props . ${BENCH_JVM_ARGS:-}
 fi
 
 mkfifo console
@@ -86,6 +87,34 @@ for ((i = 0; i < 300; i++)); do
     kill -0 "$server" 2>/dev/null || { tail -n 30 server.log; exit 1; }
     sleep 1
 done
+
+if [[ $scenario == worldgen ]]; then
+    # Forceloaded chunks count as entity ticking once they are fully generated.
+    ticking() {
+        send "paper chunkinfo" # the last line totals all worlds
+        sleep 1
+        grep -oE 'Entity Ticking: [0-9]+' server.log | tail -n1 | grep -oE '[0-9]+$' || echo 0
+    }
+    base=$(ticking)
+    started=$(date +%s.%N)
+    for tx in 0 1; do
+        for tz in 0 1; do # four 16x16-chunk tiles (forceload takes at most 256 chunks at once)
+            x0=$((4096 + tx * 256)); z0=$((4096 + tz * 256))
+            send "forceload add $x0 $z0 $((x0 + 255)) $((z0 + 255))"
+        done
+    done
+    generated=0
+    for ((i = 0; i < 600; i++)); do
+        generated=$(( $(ticking) - base ))
+        [[ $generated -ge 1024 ]] && break
+    done
+    elapsed=$(awk -v s="$started" -v e="$(date +%s.%N)" 'BEGIN { printf "%.1f", e - s }')
+    send "stop"
+    wait "$server" || true
+    trap - EXIT
+    echo "worldgen: $generated chunks in $elapsed s ($(awk -v n="$generated" -v t="$elapsed" 'BEGIN { printf "%.1f", n / t }') chunks/s)"
+    exit 0
+fi
 
 send "gamerule advance_time false"
 send "gamerule advance_weather false"

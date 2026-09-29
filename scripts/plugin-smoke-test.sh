@@ -80,6 +80,10 @@ trap - EXIT
 # ---- verdict ----------------------------------------------------------------
 enabled=$(grep -cE '\] Enabling [^ ]+ v' server.log || true)
 problems=$(grep -E 'Error occurred while enabling|Could not load plugin|Error occurred while loading|Exception in thread|Error sending packet|Exception caught' server.log || true)
+# Any error the server logs fails the test (a config that failed to load leaves plugins working),
+# except EssentialsX's warning about server versions it does not know.
+errors=$(grep -E '^\[[0-9:]+ ERROR\]: ' server.log | grep -vE '\[Essentials\] You are running an unsupported server version' || true)
+[[ -n "$errors" ]] && problems="$problems"$'\n'"$errors"
 
 echo
 echo "Boot:     $(grep -oE 'Done \([0-9.]+s\)' server.log)"

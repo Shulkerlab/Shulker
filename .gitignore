@@ -67,3 +67,5 @@ test-plugin.settings.gradle.kts
 /run-smoke
 /run-bench
 /run-world-test
+/run-worldgen-test
+__pycache__/
