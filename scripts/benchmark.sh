@@ -10,12 +10,14 @@
 #                every mob search the whole path budget
 #   natural      a normal world at night: BENCH_BOTS players (default 16) spread over 16000
 #                blocks, natural mob spawning, random ticks; no arena, the mob count is ignored
-#   worldgen     generation speed: time to generate 1024 new chunks of a normal world
+#   worldgen     generation speed: time to generate 4096 new chunks of a normal world
 # Set SHULKER_YML to a file to use as shulker.yml (to toggle optimisations), and LEAF_YML to a
 # file to use as config/leaf-global.yml.
 # BENCH_BOTS=n adds n headless players walking around the arena (entity tracking, chunk sending).
 # BENCH_WORLDS=3 splits the mobs over the overworld, the nether roof and the end island, for
 # measuring parallel world ticking.
+# Other Paper forks' jars work too, for comparisons: they start with Aikar's G1 flags and the same
+# heap (without pre-touching, like Shulker here) and their own default configuration.
 # Running this accepts the Minecraft EULA for the throwaway server it creates.
 set -euo pipefail
 
@@ -76,7 +78,19 @@ fi
 
 mkfifo console
 exec 3<>console
-limited java -jar "$jar" --memory="$SHULKER_TEST_HEAP" --gc=g1 nogui < console > server.log 2>&1 &
+if unzip -p "$jar" META-INF/MANIFEST.MF 2>/dev/null | grep -q 'dev.shulker.launcher'; then
+    limited java -jar "$jar" --memory="$SHULKER_TEST_HEAP" --gc=g1 nogui < console > server.log 2>&1 &
+else
+    # Aikar's flags (https://docs.papermc.io/paper/aikars-flags) minus AlwaysPreTouch.
+    jfr_args=()
+    [[ -n "${BENCH_JFR:-}" ]] && jfr_args=("-XX:FlightRecorderOptions:stackdepth=256" "-XX:StartFlightRecording:delay=$((warmup + 15))s,duration=$((measure - 10))s,dumponexit=true,settings=profile,filename=$(realpath -m "$BENCH_JFR")")
+    limited java -Xms"$SHULKER_TEST_HEAP" -Xmx"$SHULKER_TEST_HEAP" -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 \
+        -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 \
+        -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 \
+        -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 \
+        -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 --add-modules=jdk.incubator.vector \
+        ${BENCH_JVM_ARGS:-} "${jfr_args[@]}" -jar "$jar" --nogui < console > server.log 2>&1 &
+fi
 server=$!
 send() { echo "$1" >&3; }
 cleanup() { kill "$server" 2>/dev/null || true; }
@@ -92,27 +106,29 @@ if [[ $scenario == worldgen ]]; then
     # Forceloaded chunks count as entity ticking once they are fully generated.
     ticking() {
         send "paper chunkinfo" # the last line totals all worlds
-        sleep 1
+        sleep 0.5
         grep -oE 'Entity Ticking: [0-9]+' server.log | tail -n1 | grep -oE '[0-9]+$' || echo 0
     }
     base=$(ticking)
     started=$(date +%s.%N)
-    for tx in 0 1; do
-        for tz in 0 1; do # four 16x16-chunk tiles (forceload takes at most 256 chunks at once)
+    for tx in 0 1 2 3; do
+        for tz in 0 1 2 3; do # 16x16-chunk tiles (forceload takes at most 256 chunks at once)
             x0=$((4096 + tx * 256)); z0=$((4096 + tz * 256))
             send "forceload add $x0 $z0 $((x0 + 255)) $((z0 + 255))"
         done
     done
     generated=0
-    for ((i = 0; i < 600; i++)); do
+    for ((i = 0; i < 1200; i++)); do
         generated=$(( $(ticking) - base ))
-        [[ $generated -ge 1024 ]] && break
+        [[ $generated -ge 4096 ]] && break
     done
     elapsed=$(awk -v s="$started" -v e="$(date +%s.%N)" 'BEGIN { printf "%.1f", e - s }')
     send "stop"
     wait "$server" || true
     trap - EXIT
-    echo "worldgen: $generated chunks in $elapsed s ($(awk -v n="$generated" -v t="$elapsed" 'BEGIN { printf "%.1f", n / t }') chunks/s)"
+    # The server saves on stop: the overworld's region files now hold the generated chunks.
+    region_mib=$(find world -path '*overworld/region/*' -type f -printf '%s\n' 2>/dev/null | awk '{ s += $1 } END { printf "%.1f", s / 1048576 }')
+    echo "worldgen: $generated chunks in $elapsed s ($(awk -v n="$generated" -v t="$elapsed" 'BEGIN { printf "%.1f", n / t }') chunks/s), overworld regions $region_mib MiB"
     exit 0
 fi
 

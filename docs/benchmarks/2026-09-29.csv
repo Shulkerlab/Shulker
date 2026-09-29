@@ -1,0 +1,50 @@
+1,villagers,shulker,mobs=1500/1500  mspt(avg/min/max, 1m)=9.2/6.4/28.6
+1,villagers,paper,mobs=1500/1500  mspt(avg/min/max, 1m)=30.0/26.0/40.5
+1,villagers,purpur,mobs=1500/1500  mspt(avg/min/max, 1m)=31.2/26.4/47.0
+1,villagers,leaf,mobs=1500/1500  mspt(avg/min/max, 1m)=9.8/6.9/17.7
+1,villagers,divinemc,mobs=1500/1500  mspt(avg/min/max, 1m)=16.2/11.7/30.3
+1,pathfinding,shulker,mobs=1009/1000  mspt(avg/min/max, 1m)=7.7/5.0/41.9
+1,pathfinding,paper,mobs=1009/1000  mspt(avg/min/max, 1m)=18.0/11.9/34.1
+1,pathfinding,purpur,mobs=1009/1000  mspt(avg/min/max, 1m)=18.3/10.2/37.7
+1,pathfinding,leaf,mobs=1009/1000  mspt(avg/min/max, 1m)=16.2/10.7/33.1
+1,pathfinding,divinemc,mobs=1009/1000  mspt(avg/min/max, 1m)=8.3/5.6/14.5
+1,bots,shulker,mobs=1500/1500  mspt(avg/min/max, 1m)=19.0/16.9/43.4
+1,bots,paper,mobs=1500/1500  mspt(avg/min/max, 1m)=39.5/30.5/248.8
+1,bots,purpur,mobs=1500/1500  mspt(avg/min/max, 1m)=39.6/33.1/52.6
+1,bots,leaf,mobs=1500/1500  mspt(avg/min/max, 1m)=21.2/17.5/35.9
+1,bots,divinemc,mobs=1500/1500  mspt(avg/min/max, 1m)=32.5/24.3/49.7
+1,natural,shulker,natural, 16 bots  mspt(avg/min/max, 1m)=18.1/11.9/95.1
+1,natural,paper,natural, 16 bots  mspt(avg/min/max, 1m)=21.0/11.1/135.2
+1,natural,purpur,natural, 16 bots  mspt(avg/min/max, 1m)=24.0/16.6/213.0
+1,natural,leaf,natural, 16 bots  mspt(avg/min/max, 1m)=18.5/11.1/82.3
+1,natural,divinemc,natural, 16 bots  mspt(avg/min/max, 1m)=20.1/14.2/169.7
+1,worldgen,shulker,worldgen: 4096 chunks in 37.7 s (108.6 chunks/s), overworld regions 29.6 MiB
+1,worldgen,paper,worldgen: 4096 chunks in 39.7 s (103.2 chunks/s), overworld regions 56.7 MiB
+1,worldgen,purpur,worldgen: 4096 chunks in 40.2 s (101.9 chunks/s), overworld regions 56.3 MiB
+1,worldgen,leaf,worldgen: 4096 chunks in 49.2 s (83.3 chunks/s), overworld regions 57.0 MiB
+1,worldgen,divinemc,worldgen: 4096 chunks in 38.7 s (105.8 chunks/s), overworld regions 57.1 MiB
+2,villagers,shulker,mobs=1500/1500  mspt(avg/min/max, 1m)=9.1/6.2/21.8
+2,villagers,paper,mobs=1500/1500  mspt(avg/min/max, 1m)=31.0/26.7/41.8
+2,villagers,purpur,mobs=1500/1500  mspt(avg/min/max, 1m)=30.3/25.7/40.0
+2,villagers,leaf,mobs=1500/1500  mspt(avg/min/max, 1m)=9.9/6.9/27.1
+2,villagers,divinemc,mobs=1500/1500  mspt(avg/min/max, 1m)=16.5/10.7/37.7
+2,pathfinding,shulker,mobs=1009/1000  mspt(avg/min/max, 1m)=7.7/4.8/17.8
+2,pathfinding,paper,mobs=1009/1000  mspt(avg/min/max, 1m)=18.9/11.5/37.8
+2,pathfinding,purpur,mobs=1009/1000  mspt(avg/min/max, 1m)=18.2/11.5/35.4
+2,pathfinding,leaf,mobs=1009/1000  mspt(avg/min/max, 1m)=15.5/9.5/31.4
+2,pathfinding,divinemc,mobs=1009/1000  mspt(avg/min/max, 1m)=8.6/6.1/13.8
+2,bots,shulker,mobs=1500/1500  mspt(avg/min/max, 1m)=19.1/16.7/33.7
+2,bots,paper,mobs=1500/1500  mspt(avg/min/max, 1m)=33.1/29.0/43.5
+2,bots,purpur,mobs=1500/1500  mspt(avg/min/max, 1m)=40.9/34.8/56.7
+2,bots,leaf,mobs=1500/1500  mspt(avg/min/max, 1m)=21.6/18.0/30.9
+2,bots,divinemc,mobs=1500/1500  mspt(avg/min/max, 1m)=31.8/24.5/50.5
+2,natural,shulker,natural, 16 bots  mspt(avg/min/max, 1m)=15.6/9.9/106.6
+2,natural,paper,natural, 16 bots  mspt(avg/min/max, 1m)=25.6/18.9/176.0
+2,natural,purpur,natural, 16 bots  mspt(avg/min/max, 1m)=24.8/17.2/217.1
+2,natural,leaf,natural, 16 bots  mspt(avg/min/max, 1m)=20.6/13.8/103.8
+2,natural,divinemc,natural, 16 bots  mspt(avg/min/max, 1m)=20.4/14.2/185.9
+2,worldgen,shulker,worldgen: 4096 chunks in 36.7 s (111.6 chunks/s), overworld regions 29.6 MiB
+2,worldgen,paper,worldgen: 4096 chunks in 47.2 s (86.8 chunks/s), overworld regions 56.4 MiB
+2,worldgen,purpur,worldgen: 4096 chunks in 45.2 s (90.6 chunks/s), overworld regions 56.7 MiB
+2,worldgen,leaf,worldgen: 4096 chunks in 50.2 s (81.6 chunks/s), overworld regions 56.9 MiB
+2,worldgen,divinemc,worldgen: 4096 chunks in 45.2 s (90.6 chunks/s), overworld regions 57.2 MiB

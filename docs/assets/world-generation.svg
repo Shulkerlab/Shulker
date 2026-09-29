@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="180" viewBox="0 0 960 180" role="img" aria-label="World generation speed and region file size">
+<text x="0" y="16" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">World generation</text>
+<text x="0" y="34" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">4096 new chunks, higher is better</text>
+<text x="0" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulker</text>
+<rect x="78" y="51" width="312.0" height="16" rx="3" fill="#8b5cf6"/>
+<text x="396.0" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">110.1 chunks/s</text>
+<text x="0" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">DivineMC</text>
+<rect x="78" y="75" width="278.3" height="16" rx="3" fill="#9aa1ab"/>
+<text x="362.3" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">98.2 chunks/s</text>
+<text x="0" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Purpur</text>
+<rect x="78" y="99" width="272.8" height="16" rx="3" fill="#9aa1ab"/>
+<text x="356.8" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">96.2 chunks/s</text>
+<text x="0" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Paper</text>
+<rect x="78" y="123" width="269.2" height="16" rx="3" fill="#9aa1ab"/>
+<text x="353.2" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">95.0 chunks/s</text>
+<text x="0" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Leaf</text>
+<rect x="78" y="147" width="233.6" height="16" rx="3" fill="#9aa1ab"/>
+<text x="317.6" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">82.4 chunks/s</text>
+<text x="500" y="16" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">Disk space for those chunks</text>
+<text x="500" y="34" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">overworld region files, lower is better</text>
+<text x="500" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulker</text>
+<rect x="578" y="51" width="161.6" height="16" rx="3" fill="#8b5cf6"/>
+<text x="745.6" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">29.6 MiB</text>
+<text x="500" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Purpur</text>
+<rect x="578" y="75" width="308.5" height="16" rx="3" fill="#9aa1ab"/>
+<text x="892.5" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">56.5 MiB</text>
+<text x="500" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Paper</text>
+<rect x="578" y="99" width="308.7" height="16" rx="3" fill="#9aa1ab"/>
+<text x="892.7" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">56.5 MiB</text>
+<text x="500" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Leaf</text>
+<rect x="578" y="123" width="310.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="894.9" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">57.0 MiB</text>
+<text x="500" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">DivineMC</text>
+<rect x="578" y="147" width="312.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="896.0" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">57.2 MiB</text>
+</svg>

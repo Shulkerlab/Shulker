@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="380" viewBox="0 0 960 380" role="img" aria-label="Average tick time of Shulker, Leaf, DivineMC, Purpur and Paper">
+<text x="0" y="16" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">1500 villagers, cows and sheep</text>
+<text x="0" y="34" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">average tick time, lower is better</text>
+<text x="0" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulker</text>
+<rect x="78" y="51" width="92.8" height="16" rx="3" fill="#8b5cf6"/>
+<text x="176.8" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">9.1 ms</text>
+<text x="0" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Leaf</text>
+<rect x="78" y="75" width="99.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="183.9" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">9.9 ms</text>
+<text x="0" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">DivineMC</text>
+<rect x="78" y="99" width="165.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="249.9" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">16.4 ms</text>
+<text x="0" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Paper</text>
+<rect x="78" y="123" width="309.5" height="16" rx="3" fill="#9aa1ab"/>
+<text x="393.5" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">30.5 ms</text>
+<text x="0" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Purpur</text>
+<rect x="78" y="147" width="312.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="396.0" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">30.8 ms</text>
+<text x="500" y="16" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">1000 husks pathfinding</text>
+<text x="500" y="34" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">average tick time, lower is better</text>
+<text x="500" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulker</text>
+<rect x="578" y="51" width="130.2" height="16" rx="3" fill="#8b5cf6"/>
+<text x="714.2" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">7.7 ms</text>
+<text x="500" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">DivineMC</text>
+<rect x="578" y="75" width="142.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="726.9" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">8.4 ms</text>
+<text x="500" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Leaf</text>
+<rect x="578" y="99" width="268.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="852.0" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">15.8 ms</text>
+<text x="500" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Purpur</text>
+<rect x="578" y="123" width="308.6" height="16" rx="3" fill="#9aa1ab"/>
+<text x="892.6" y="135" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">18.2 ms</text>
+<text x="500" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Paper</text>
+<rect x="578" y="147" width="312.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="896.0" y="159" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">18.4 ms</text>
+<text x="0" y="216" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">40 players + 1500 mobs</text>
+<text x="0" y="234" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">average tick time, lower is better</text>
+<text x="0" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulker</text>
+<rect x="78" y="251" width="147.7" height="16" rx="3" fill="#8b5cf6"/>
+<text x="231.7" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">19.1 ms</text>
+<text x="0" y="287" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Leaf</text>
+<rect x="78" y="275" width="165.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="249.9" y="287" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">21.4 ms</text>
+<text x="0" y="311" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">DivineMC</text>
+<rect x="78" y="299" width="249.2" height="16" rx="3" fill="#9aa1ab"/>
+<text x="333.2" y="311" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">32.1 ms</text>
+<text x="0" y="335" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Paper</text>
+<rect x="78" y="323" width="281.4" height="16" rx="3" fill="#9aa1ab"/>
+<text x="365.4" y="335" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">36.3 ms</text>
+<text x="0" y="359" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Purpur</text>
+<rect x="78" y="347" width="312.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="396.0" y="359" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">40.2 ms</text>
+<text x="500" y="216" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">16 players in a normal world</text>
+<text x="500" y="234" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">average tick time, lower is better</text>
+<text x="500" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulker</text>
+<rect x="578" y="251" width="215.5" height="16" rx="3" fill="#8b5cf6"/>
+<text x="799.5" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">16.9 ms</text>
+<text x="500" y="287" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Leaf</text>
+<rect x="578" y="275" width="250.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="834.0" y="287" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">19.6 ms</text>
+<text x="500" y="311" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">DivineMC</text>
+<rect x="578" y="299" width="258.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="842.9" y="311" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">20.2 ms</text>
+<text x="500" y="335" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Paper</text>
+<rect x="578" y="323" width="297.9" height="16" rx="3" fill="#9aa1ab"/>
+<text x="881.9" y="335" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">23.3 ms</text>
+<text x="500" y="359" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Purpur</text>
+<rect x="578" y="347" width="312.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="896.0" y="359" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">24.4 ms</text>
+</svg>
