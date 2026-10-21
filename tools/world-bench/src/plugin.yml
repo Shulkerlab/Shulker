@@ -1,0 +1,13 @@
+name: WorldBench
+version: 1.0
+main: dev.shulker.bench.WorldBench
+api-version: '26.2'
+description: Compares ways of running many small worlds (islands, arenas)
+commands:
+  worldbench:
+    description: Runs the world benchmark
+    usage: /worldbench run <islands> <resets>
+    permission: worldbench.run
+permissions:
+  worldbench.run:
+    default: op
