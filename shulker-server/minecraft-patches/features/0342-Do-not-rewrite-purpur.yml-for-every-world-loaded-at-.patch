@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ozan=20=C4=B0nce?=
+ <126924958+Aegyip@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 15:50:40 +0300
+Subject: [PATCH] Do not rewrite purpur.yml for every world loaded at runtime
+
+PurpurConfig.readConfig saved the whole file each time a world's settings were read. Worlds loaded after startup now skip that save; their settings are unchanged.
+
+diff --git a/org/purpurmc/purpur/PurpurConfig.java b/org/purpurmc/purpur/PurpurConfig.java
+index e10462ec8daf19f0cb74d898f4aaac6365ca3d90..ee8bb2efa5d12abc688e13f2b6f22812a17100d1 100644
+--- a/org/purpurmc/purpur/PurpurConfig.java
++++ b/org/purpurmc/purpur/PurpurConfig.java
+@@ -114,7 +114,7 @@ public class PurpurConfig {
+             }
+         }
+ 
+-        try {
++        if (dev.shulker.server.world.WorldConfigSaves.shouldSave(instance)) try { // Shulker - do not rewrite the global file for every world loaded at runtime
+             config.save(CONFIG_FILE);
+         } catch (IOException ex) {
+             Bukkit.getLogger().log(Level.SEVERE, "Could not save " + CONFIG_FILE, ex);
