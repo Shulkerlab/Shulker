@@ -2,6 +2,9 @@
 
 Durum: **onaylandı (2026-09-27), uygulanıyor.** Kararlar 6. bölümde.
 
+Bu belge **region** düzenini (`r.X.Z.shulk`) anlatıyor. Küçük dünyaları tek dosyada tutan **world**
+düzeni (Shulk Worlds) için: [SHULK-WORLD.md](SHULK-WORLD.md).
+
 ## 1. Ölçümler
 
 Deney: seed `shulker`, 64×64 chunk üretilmiş overworld (16 region dosyası, 8100 chunk, 255 MiB ham
