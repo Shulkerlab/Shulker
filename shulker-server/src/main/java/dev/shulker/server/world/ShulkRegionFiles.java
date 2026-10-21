@@ -3,7 +3,6 @@ package dev.shulker.server.world;
 import com.mojang.logging.LogUtils;
 import dev.shulker.format.RegionKind;
 import dev.shulker.format.ShulkRegion;
-import dev.shulker.format.ShulkWorld;
 import dev.shulker.server.ShulkerConfig;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -46,18 +45,18 @@ public final class ShulkRegionFiles {
     }
 
     public static boolean exists(final Path mcaPath) {
-        final @Nullable ShulkWorld world = ShulkWorldStorage.forRegionFolder(mcaPath.getParent());
+        final ShulkWorldStorage.@Nullable Registered world = ShulkWorldStorage.forRegionFolder(mcaPath.getParent());
         if (world != null) {
             final int[] coords = regionCoords(mcaPath);
-            return world.hasRegion(RegionKind.fromFolderName(mcaPath.getParent().getFileName().toString()), coords[0], coords[1]);
+            return world.world().hasRegion(RegionKind.fromFolderName(mcaPath.getParent().getFileName().toString()), coords[0], coords[1]);
         }
         return Files.exists(mcaPath) || Files.exists(shulkPath(mcaPath));
     }
 
     public static RegionFile open(final RegionStorageInfo info, final Path mcaPath, final Path folder, final boolean sync) throws IOException {
-        final @Nullable ShulkWorld world = ShulkWorldStorage.forRegionFolder(folder);
+        final ShulkWorldStorage.@Nullable Registered world = ShulkWorldStorage.forRegionFolder(folder);
         if (world != null) {
-            return new ShulkWorldRegionFile(info, shulkPath(mcaPath), world); // a Shulk World: chunks live in memory
+            return new ShulkWorldRegionFile(info, shulkPath(mcaPath), world.world(), world.dropEmpty()); // a Shulk World: chunks live in memory
         }
         final Path shulkPath = shulkPath(mcaPath);
         final boolean hasShulk = Files.exists(shulkPath);

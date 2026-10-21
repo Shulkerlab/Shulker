@@ -71,6 +71,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
     private static final Pattern LOADER_ID = Pattern.compile("[a-z0-9_-]{1,32}");
     /** Holds the world's UUID; a world created from a template gets a new one. */
     private static final String METADATA_FILE = "data/paper/metadata.dat";
+    private static final String WORLD_GEN_SETTINGS_FILE = "data/minecraft/world_gen_settings.dat";
 
     private static @Nullable ShulkWorldManager instance;
 
@@ -209,7 +210,39 @@ public final class ShulkWorldManager implements ShulkWorlds {
     @Override
     public CompletableFuture<ShulkWorldTemplate> captureTemplate(final World world, final String name) {
         final Loaded loaded = this.loaded(world);
-        return this.snapshot(loaded).thenApply(snapshot -> new Template(name, snapshot));
+        return this.snapshot(loaded).thenApplyAsync(snapshot -> {
+            if (loaded.properties.generator() == null) {
+                pruneQuietly(snapshot);
+            }
+            return new Template(name, snapshot);
+        }, this.io);
+    }
+
+    /**
+     * Imports a world folder (one dimension) as a stored Shulk World, dropping its empty chunks:
+     * Shulk Worlds are void outside what they store. Completes with the stored size in bytes.
+     */
+    public CompletableFuture<Integer> importFolder(final Path folder, final String name) {
+        checkName(name);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                final ShulkWorld world = toDimensionLayout(ShulkWorldFolders.importFolder(folder));
+                final int dropped = EmptyChunks.prune(world);
+                LOGGER.info("Imported {} as Shulk World {}: {} chunks kept, {} empty chunks dropped", folder, name,
+                    world.chunkCount(dev.shulker.format.RegionKind.CHUNK), dropped);
+                return world.toBytes();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }, this.io).thenCompose(bytes -> this.fileLoader.write(name, bytes).thenApply(done -> bytes.length));
+    }
+
+    private static void pruneQuietly(final ShulkWorld world) {
+        try {
+            EmptyChunks.prune(world);
+        } catch (IOException e) {
+            LOGGER.warn("Could not drop empty chunks", e);
+        }
     }
 
     // ---- loading ---------------------------------------------------------------------------
@@ -274,6 +307,12 @@ public final class ShulkWorldManager implements ShulkWorlds {
         if (Bukkit.getWorld(key(name)) != null || this.worlds.putIfAbsent(name, loaded) != null) {
             return CompletableFuture.failedFuture(new IllegalStateException("A world named " + name + " is already loaded"));
         }
+        if (properties.generator() == null) {
+            // Void worlds generate nothing, so they need no noise settings: drop stored ones (a
+            // world imported from a regular world carries them) and start on a flat base, which
+            // spares building and compiling the overworld noise router for every world.
+            data.removeFile(WORLD_GEN_SETTINGS_FILE);
+        }
         return CompletableFuture.runAsync(() -> {
             try {
                 this.cleanUpLeftovers();
@@ -284,11 +323,12 @@ public final class ShulkWorldManager implements ShulkWorlds {
             }
         }, this.io).thenCompose(ignored -> onMain(() -> {
             final long start = System.nanoTime();
-            ShulkWorldStorage.register(folder, data);
+            ShulkWorldStorage.register(folder, data, properties.generator() == null);
             final World world;
             try {
                 world = Bukkit.createWorld(WorldCreator.ofKey(key(name))
                     .environment(properties.environment())
+                    .type(properties.generator() == null ? org.bukkit.WorldType.FLAT : org.bukkit.WorldType.NORMAL)
                     .generator(properties.generator() != null ? properties.generator() : VoidChunkGenerator.INSTANCE));
             } catch (RuntimeException e) {
                 ShulkWorldStorage.unregister(folder);

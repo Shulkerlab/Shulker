@@ -26,11 +26,13 @@ public final class ShulkWorldRegionFile extends RegionFile {
 
     private final ShulkWorld world;
     private final RegionKind kind;
+    private final boolean dropEmpty;
 
-    ShulkWorldRegionFile(final RegionStorageInfo info, final Path path, final ShulkWorld world) {
+    ShulkWorldRegionFile(final RegionStorageInfo info, final Path path, final ShulkWorld world, final boolean dropEmpty) {
         super(info, path);
         this.world = world;
         this.kind = RegionKind.fromStorageType(info.type());
+        this.dropEmpty = dropEmpty;
     }
 
     // ---- reading ---------------------------------------------------------------------------
@@ -57,6 +59,13 @@ public final class ShulkWorldRegionFile extends RegionFile {
     public ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData moonrise$startWrite(
         final CompoundTag data, final ChunkPos pos
     ) {
+        if (this.dropEmpty && EmptyChunks.isEmpty(this.kind, data)) {
+            // Nothing in it, and the void generator makes the same chunk again: do not store it.
+            return new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData(
+                data, ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData.WriteResult.WRITE,
+                new DataOutputStream(java.io.OutputStream.nullOutputStream()), regionFile -> this.world.delete(this.kind, pos.x(), pos.z())
+            );
+        }
         final ChunkBytes buffer = new ChunkBytes();
         return new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData(
             data, ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData.WriteResult.WRITE,

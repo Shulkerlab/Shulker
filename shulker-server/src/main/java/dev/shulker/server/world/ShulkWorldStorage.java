@@ -12,14 +12,18 @@ import org.jspecify.annotations.Nullable;
  */
 final class ShulkWorldStorage {
 
+    /** A registered world: its chunks, and whether empty chunks are dropped instead of stored. */
+    record Registered(ShulkWorld world, boolean dropEmpty) {
+    }
+
     /** Dimension folder (absolute, normalized) -> the world's chunks. */
-    private static final Map<Path, ShulkWorld> WORLDS = new ConcurrentHashMap<>();
+    private static final Map<Path, Registered> WORLDS = new ConcurrentHashMap<>();
 
     private ShulkWorldStorage() {
     }
 
-    static void register(final Path dimensionFolder, final ShulkWorld world) {
-        WORLDS.put(key(dimensionFolder), world);
+    static void register(final Path dimensionFolder, final ShulkWorld world, final boolean dropEmpty) {
+        WORLDS.put(key(dimensionFolder), new Registered(world, dropEmpty));
     }
 
     static void unregister(final Path dimensionFolder) {
@@ -27,7 +31,7 @@ final class ShulkWorldStorage {
     }
 
     /** The Shulk World whose {@code region/}, {@code entities/} or {@code poi/} folder this is. */
-    static @Nullable ShulkWorld forRegionFolder(final @Nullable Path regionFolder) {
+    static @Nullable Registered forRegionFolder(final @Nullable Path regionFolder) {
         if (WORLDS.isEmpty() || regionFolder == null || regionFolder.getParent() == null) {
             return null;
         }

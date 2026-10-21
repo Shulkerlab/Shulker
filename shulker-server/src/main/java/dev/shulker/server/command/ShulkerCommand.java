@@ -117,14 +117,7 @@ public final class ShulkerCommand extends Command {
                 case "import" -> {
                     final Path folder = Path.of(arg(rest, 0, "folder"));
                     final String name = arg(rest, 1, "name");
-                    report(sender, CompletableFuture.supplyAsync(() -> {
-                        try {
-                            return ShulkWorldFolders.importFolder(folder).toBytes();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
-                    }).thenCompose(bytes -> worlds.fileLoader().write(name, bytes).thenApply(done -> bytes.length)),
-                        size -> "Imported " + folder + " as " + name + " (" + kib(size) + ")");
+                    report(sender, worlds.importFolder(folder, name), size -> "Imported " + folder + " as " + name + " (" + kib(size) + ")");
                 }
                 case "export" -> {
                     final String name = arg(rest, 0, "name");
