@@ -144,27 +144,51 @@ dönüştürülmeli.
 | `shulk-worlds.compression-level` | `6` | belleğe kaydedilen chunk'ların zstd seviyesi |
 | `shulk-worlds.save-threads` | `2` | serileştirme ve loader thread'leri |
 
-## 8. Ölçümler (Windows 11 test sunucusu, 2026-10-21)
+## 8. Ölçümler
 
-| | |
-|---|---|
-| Şablon: düz dünya, 529 chunk | dosya 66 KiB; aynı chunk'lar `.mca` region dosyalarında 0.2 MiB |
-| Şablondan dünya oluşturma | ana thread'de 69–150 ms (20 dünya), neredeyse tamamı Paper'ın `createWorld` yolunda |
-| Diskten yükleme | 82 ms ana thread |
-| 50 dünyayı arka arkaya oluşturma | 4.0 s |
+Ayrıntılar ve ham veriler: [BENCHMARKS.md](BENCHMARKS.md#islands-and-arenas-world-systems).
+Ryzen 5 2600, Windows 11, 2 GiB heap, `tools/world-bench`, 50 ada ve 20 arena reset'i, iki koşunun
+ortalaması:
 
-JFR profili, ana thread'deki sürenin büyük kısmının dünya başına yazılan yapılandırma dosyalarına
-(`spigot.yml` her dünyada yeniden kaydediliyor, `paper-world.yml`, `gale-world.yml`) ve klasör
-işlemlerine gittiğini gösteriyor. Shulk World'e özgü kısım (kayıt, register) milisaniyenin altında.
+| | Shulk World (Shulker) | Ortak dünya + yapıştırma (Paper) | Ada başına dünya (Paper) |
+|---|---|---|---|
+| Yeni ada, ana thread CPU | 45.6 ms | 13.3 ms | 44.3 ms |
+| Yeni ada, en kötü tick | 198 ms | 823 ms | 97 ms |
+| Arena reset | 151 ms | 6.8 ms | 164 ms |
+| Ada başına disk | 6.6 KiB | 31.2 KiB | 4390 KiB |
+| Taşınacak veri | 6.6 KiB | 21.2 KiB | 4390 KiB |
+| Taşınan adanın yüklenmesi | 103 ms | — | 61 ms |
+
+Bu sonuçlara giden yolda yapılan düzeltmeler:
+
+- **Boş chunk'lar saklanmıyor** (`EmptyChunks`): yalnızca hava içeren, blok entity'si, tick'i ve
+  eklenti verisi olmayan chunk'lar ile entity'siz entity chunk'ları void dünyada aynen yeniden
+  oluştuğu için yazılmıyor. İçe aktarılan ve yakalanan şablonlar da aynı şekilde temizleniyor.
+  Normal bir void dünyadan alınan şablon 1089 chunk'tan 4 chunk'a indi (166 → 6.4 KiB).
+- **Void dünyalar düz tabanla açılıyor** ve saklanan dünya üretim ayarları atılıyor. Böylece her
+  dünya için overworld gürültü yönlendiricisi kurulup C2ME ile derlenmiyor. Oluşturma 240 ms'den
+  42 ms ana thread CPU'ya indi.
+- **Çalışma sırasında açılan dünyalar `spigot.yml` ve `purpur.yml`'yi yeniden yazmıyor**
+  (`WorldConfigSaves`, iki yama).
+- **C2ME düğümleri hash'lerini önbellekliyor:** normal arazili dünya açmak 222 ms'den 139 ms'ye
+  indi. Bu düzeltme Shulk World'lere değil, bütün çalışma zamanı dünyalarına yarıyor.
+- **Atılan dünya kaydedilmiyor:** `unload(world, false)` artık seviyeyi kaydetmiyor. Önceden ana
+  thread Minecraft'ın veri dosyalarının paylaşılan bir I/O havuzunda yazılmasını bekliyordu; bir
+  koşuda bu bekleme 23 saniyeyi bulmuştu.
+
+Kalan ana thread süresinin büyük kısmı Paper'ın dünya başına kurulumu: Paper, Gale ve Purpur'un
+dünya yapılandırmaları ve kayıtlı verilerin okunması.
 
 ## 9. Bilinen sınırlamalar
 
 - **Çökmede kayıp:** bellekteki dünya son kayıttan sonraki değişiklikleri kaybeder. Otomatik kayıt
   aralığı bu pencereyi sınırlıyor.
-- **Boş chunk'lar:** oyuncuların ya da biletlerin yüklediği void chunk'lar da kaydediliyor (küçük,
-  ama sayılıyor). Testte forceload sonrası 529 chunk 729'a çıktı (66 → 103 KiB).
-- **Dünya başına yapılandırma dosyaları:** Paper, Spigot ve Gale her dünya için kendi yml'ini
-  oluşturuyor. Bunlar dünyanın dosyalarıyla birlikte saklanıyor.
+- **Boş chunk'ların biyomu:** saklanmayan boş bir chunk yeniden oluşturulduğunda generator'ın
+  biyomunu (düz taban: plains) alır, şablondaki biyomu değil.
+- **Dünya başına yapılandırma dosyaları:** Paper ve Gale her dünya için kendi yml'ini oluşturuyor;
+  bunlar dünyanın dosyalarıyla birlikte saklanıyor.
+- **CLI dönüştürücü boş chunk'ları atmıyor:** `--layout=world` NBT okumadan çalışıyor. Boş
+  chunk'lar dünya ilk kez yüklenip kaydedildiğinde ya da `/shulker world import` ile atılıyor.
 - **Paralel dünya tick'i** Shulk World'lerle denenmedi.
 
 ## 10. Testler

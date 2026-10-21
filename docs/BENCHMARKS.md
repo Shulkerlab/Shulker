@@ -69,3 +69,83 @@ tools/bench-charts.py results.csv docs/assets
 
 A full run of five servers takes a little over an hour. Differences below about 5% are within
 the run-to-run noise of these scenarios.
+
+## Islands and arenas: world systems
+
+The second chart in the README compares the ways a server can run many small worlds, such as
+skyblock islands or minigame arenas. It was measured separately from the tick scenarios above,
+on another machine, so the two sets of numbers should not be compared with each other.
+
+### Setup
+
+- AMD Ryzen 5 2600 (12 threads), 16 GiB RAM, Windows 11, Temurin 25.0.4, 2 GiB heap.
+- Shulker at `d4d688f`, started with `--no-relaunch`, and Paper at `9240f586` (the base Shulker
+  builds on), started with Aikar's flags. Both from source, both with a flat default world and
+  `pause-when-empty-seconds` off.
+- [`tools/world-bench`](../tools/world-bench) is a plugin that runs every scenario on the
+  server it is installed on, with one island template: a 25-block floating island of about
+  4,000 blocks with a tree, a chest, water and lava.
+- Two runs on each server, alternating; the table shows the mean.
+
+### Approaches
+
+| Approach | How it works | Used by |
+|---|---|---|
+| Shared world + paste | one void world; each island is the template pasted block by block at its own grid cell | most skyblock plugins |
+| World per island | the template world's folder is copied and loaded with `Bukkit.createWorld` | most minigame plugins |
+| Shulk World | a Shulk World created from the template in memory ([SHULK-WORLD.md](SHULK-WORLD.md)) | Shulker only |
+
+### Measurements
+
+**Main-thread time** is the CPU time of the server thread beyond its idle rate, which is measured
+for five ticks right before each operation. Work the server runs between ticks counts as well, and
+so does nothing that other worlds' ticking adds. **Worst tick** is the longest gap between two
+tick starts while the operation runs. **Arena reset** is the time until the arena is playable
+again: re-pasting every block of the arena's box, copying the template folder back and loading
+it, or creating the Shulk World again. **Moving an island** is what has to be copied to another
+server: the island's region files, its world folder or its serialized Shulk World. **Loading a
+moved island** is the time until that copy is playable on the target server.
+
+### Results
+
+| | Shulk World (Shulker) | Shared world + paste (Paper) | World per island (Paper) |
+|---|---|---|---|
+| New island, main-thread time (ms) | 45.6 | **13.3** | 44.3 |
+| New island, wall-clock time (ms) | **90** | 531 | 157 |
+| New island, worst tick (ms) | 198 | 823 | **97** |
+| Arena reset (ms) | 151 | **6.8** | 164 |
+| Disk space per island (KiB) | **6.6** | 31.2 | 4,390 |
+| Moving an island: data to copy (KiB) | **6.6** | 21.2 | 4,390 |
+| Loading a moved island (ms) | 103 | — | **61** |
+
+Means of two runs; the best value in each row is bold. The worst-tick and wall-clock rows vary
+by up to 2x between runs on this machine.
+
+What this shows:
+
+- **Disk and network.** A Shulk World stores only the chunks that hold something, compressed with
+  the `.shulk` dictionaries, in one file: 6.6 KiB per island against 4.3 MiB for a world folder
+  of `.mca` region files and 31 KiB for the island's share of a shared world.
+- **Main thread.** Creating a Shulk World costs about as much main-thread time as loading a world
+  folder on Paper; both are dominated by Paper's per-world setup (world configuration files,
+  saved data). Pasting into a shared world is cheaper in CPU, but its synchronous chunk loads stall
+  the tick far longer.
+- **Resets.** Re-pasting an arena in a loaded world is by far the fastest reset; it keeps the
+  arena's world loaded all the time. Recreating a Shulk World is on par with reloading a folder.
+
+Paste and world-per-island were also measured on Shulker; the raw rows hold them. Pasting costs
+the same as on Paper. Loading regular world folders costs more main-thread time on Shulker
+(145 ms against 44 ms) because Shulker compiles every new world's noise router (the C2ME density
+function compiler, which makes generation faster); Shulk Worlds skip that.
+
+[Advanced Slime Paper](https://github.com/InfernalSuite/AdvancedSlimePaper), the other Paper
+fork with single-file worlds, was not measured.
+
+Raw rows: [benchmarks/2026-10-21-world-systems.csv](benchmarks/2026-10-21-world-systems.csv).
+
+```bash
+tools/world-bench/build.sh <a started server folder>       # builds WorldBench.jar
+# put it in plugins/, start the server, then in the console:
+worldbench run 50 20                                        # 50 islands, 20 arena resets
+tools/world-bench/charts.py results-*.csv docs/assets/world-systems.svg
+```
