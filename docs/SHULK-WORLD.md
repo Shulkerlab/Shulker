@@ -103,13 +103,22 @@ if (ShulkWorlds.isAvailable()) {                       // Paper'da false
 | `load(loader, name, properties)`, `load(name, bytes, saveTo, properties)` | yükleme |
 | `create(name, template, saveTo, properties)` | şablondan yeni dünya |
 | `save(world)`, `serialize(world)`, `unload(world, save)` | kayıt ve boşaltma |
+| `reset(world, template)` | yerinde reset: şablonun chunk'larını yüklü dünyaya geri koyar |
 | `isShulkWorld`, `world(name)`, `name(world)`, `properties(world)`, `worlds()` | sorgular |
 
 `ShulkWorldProperties`: environment, read-only, otomatik kayıt aralığı (varsayılan 5 dakika, `ZERO`
 ile kapalı), generator (varsayılan void).
 
 Event'ler (ana thread): `ShulkWorldLoadEvent`, `ShulkWorldPreSaveEvent`, `ShulkWorldSaveEvent`,
-`ShulkWorldUnloadEvent`.
+`ShulkWorldResetEvent`, `ShulkWorldUnloadEvent`.
+
+**Yerinde reset** (`reset`): oyuncular ana dünyanın spawn'ına taşınır, eklenti chunk ticket'ları ve
+forceload'lar bırakılır, dünyanın chunk'ları yazmaları düşürülerek boşaltılır ve bellekteki chunk'lar
+şablonun kopyasıyla değiştirilir. Dünya, ayarları, oyun kuralları, UUID'si ve PDC'si yerinde kalır.
+Boşalmış dünyanın chunk sistemi, Moonrise'ın kendi hızını beklemeden sıfır chunk tutucusuna kadar
+ilerletilir (ticket saati ileri alınır, bekleyen chunk görevleri çalıştırılır, 5 ms'de bir
+yoklanır); boşaltılmış ama tutucusu duran bir chunk aksi hâlde yeni veriden değil bellekten geri
+gelirdi. Bir eklenti chunk'ları yüklü tutarsa reset 10 saniye sonra hata verir.
 
 **Kendi loader'ını kaydeden eklentiler**, dünyalarını `onDisable` içinde boşaltmalı
 (`unload(world, true).join()`). Kapanışta eklentiler, dünyalar kaydedilmeden önce devre dışı
@@ -121,7 +130,7 @@ kalıyor.
 /shulker world list | info <w> | tp <w>
 /shulker world load <isim> [loader] [read-only]
 /shulker world create <isim> <şablon> [loader]
-/shulker world save <w> | unload <w> [no-save] | capture <w> <şablon>
+/shulker world save <w> | unload <w> [no-save] | reset <w> <şablon> | capture <w> <şablon>
 /shulker world import <klasör> <isim> | export <isim> <klasör> [shulk|mca]
 ```
 
@@ -147,17 +156,18 @@ dönüştürülmeli.
 ## 8. Ölçümler
 
 Ayrıntılar ve ham veriler: [BENCHMARKS.md](BENCHMARKS.md#islands-and-arenas-world-systems).
-Ryzen 5 2600, Windows 11, 2 GiB heap, `tools/world-bench`, 50 ada ve 20 arena reset'i, iki koşunun
-ortalaması:
+Ryzen 5 2600, Windows 11, 2 GiB heap, `tools/world-bench`, 50 ada ve 20 arena reset'i, aynı gece
+iki sunucuda ikişer koşunun ortalaması:
 
 | | Shulk World (Shulker) | Ortak dünya + yapıştırma (Paper) | Ada başına dünya (Paper) |
 |---|---|---|---|
-| Yeni ada, ana thread CPU | 43.5 ms | 13.3 ms | 44.3 ms |
-| Yeni ada, en kötü tick | 149 ms | 823 ms | 97 ms |
-| Arena reset | 112 ms | 6.8 ms | 164 ms |
-| Ada başına disk | 6.6 KiB | 31.2 KiB | 4390 KiB |
-| Taşınacak veri | 6.6 KiB | 21.2 KiB | 4390 KiB |
-| Taşınan adanın yüklenmesi | 90 ms | — | 61 ms |
+| Yeni ada, ana thread CPU | 53.6 ms | 19.1 ms | 47.7 ms |
+| Yeni ada, en kötü tick | 177 ms | 967 ms | 121 ms |
+| Arena reset (Shulk: yerinde) | 73 ms | 7.3 ms | 158 ms |
+| Arena reset, ana thread CPU | 20.1 ms | 8.0 ms | 37.8 ms |
+| Ada başına disk | 6.5 KiB | 31.4 KiB | 4794 KiB |
+| Taşınacak veri | 6.5 KiB | 21.2 KiB | 4794 KiB |
+| Taşınan adanın yüklenmesi | 114 ms | — | 62 ms |
 
 Bu sonuçlara giden yolda yapılan düzeltmeler:
 

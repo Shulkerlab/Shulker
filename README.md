@@ -50,19 +50,20 @@ Paper, on the same machine (Ryzen 5 2600, Windows 11, 2 GiB heap), using
 [`tools/world-bench`](tools/world-bench); the setup and every number are in
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md#islands-and-arenas-world-systems).
 
-- **Disk:** 6.6 KiB per island, against 31 KiB in a shared world and 4.3 MiB for a world folder.
+- **Disk:** 6.5 KiB per island, against 31 KiB in a shared world and 4.7 MiB for a world folder.
 - **Main thread:** creating a Shulk World costs about as much as loading a world folder on Paper
-  (43.5 ms against 44.3 ms of CPU). Pasting is cheaper in CPU (13 ms) but stalls the tick for up
-  to 0.8 s while it loads chunks.
-- **Resets:** re-pasting an arena that stays loaded is still the fastest (7 ms). Recreating a Shulk
-  World (112 ms) is faster than reloading a world folder (164 ms).
+  (54 ms against 48 ms of CPU). Pasting is cheaper in CPU (19 ms) but stalls the tick for up to
+  1 s while it loads chunks.
+- **Resets:** re-pasting an arena that stays loaded is still the fastest (7 ms). A Shulk World is
+  reset in place, without unloading it, in 73 ms and 20 ms of main-thread time, against 158 ms
+  and 38 ms for reloading a world folder.
 
 ### Networks: moving worlds between servers
 
 A Shulk World is one byte array: `ShulkWorlds#serialize` on one server and `ShulkWorlds#load` on
-another move an island with 6.6 KiB of data, against 4.3 MiB for its world folder, and a plugin can
+another move an island with 6.5 KiB of data, against 4.7 MiB for its world folder, and a plugin can
 keep every island in a shared database or object store through its own `ShulkWorldLoader`. Loading
-a moved island took 90 ms against 61 ms for a world folder on Paper.
+a moved island took 114 ms against 62 ms for a world folder on Paper.
 
 ## Shulker and other servers
 
@@ -190,6 +191,7 @@ what was built in it.
 /shulker world import world/dimensions/minecraft/island_template island   # a dimension folder becomes a template
 /shulker world create island_steve island                                 # a new world from it
 /shulker world tp island_steve
+/shulker world reset island_steve island                                  # puts the template's chunks back, in place
 /shulker world unload island_steve                                        # saves to shulker-worlds/island_steve.shulk
 /shulker world load island_steve
 ```
