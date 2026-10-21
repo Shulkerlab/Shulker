@@ -59,8 +59,19 @@ public class YClampedGradientNode implements AstNode {
         return Double.compare(fromY, that.fromY) == 0 && Double.compare(toY, that.toY) == 0 && Double.compare(fromValue, that.fromValue) == 0 && Double.compare(toValue, that.toValue) == 0;
     }
 
+    private int shulker$hash; // Shulker - cache AST hashes: nodes are immutable, and compiling rehashed whole subtrees on every lookup
+
     @Override
     public int hashCode() {
+        int hash = this.shulker$hash;
+        if (hash == 0) {
+            hash = this.shulker$computeHash();
+            this.shulker$hash = hash == 0 ? 1 : hash;
+        }
+        return hash;
+    }
+
+    private int shulker$computeHash() {
         int result = 1;
 
         result = 31 * result + this.getClass().hashCode();

@@ -52,8 +52,19 @@ public abstract class AbstractBinaryNode implements AstNode {
         return Objects.equals(left, that.left) && Objects.equals(right, that.right);
     }
 
+    private int shulker$hash; // Shulker - cache AST hashes: nodes are immutable, and compiling rehashed whole subtrees on every lookup
+
     @Override
     public int hashCode() {
+        int hash = this.shulker$hash;
+        if (hash == 0) {
+            hash = this.shulker$computeHash();
+            this.shulker$hash = hash == 0 ? 1 : hash;
+        }
+        return hash;
+    }
+
+    private int shulker$computeHash() {
         int result = 1;
 
         result = 31 * result + this.getClass().hashCode();
