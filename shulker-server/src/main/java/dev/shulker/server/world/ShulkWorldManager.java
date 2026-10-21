@@ -13,6 +13,7 @@ import dev.shulker.api.world.event.ShulkWorldUnloadEvent;
 import dev.shulker.format.ShulkWorld;
 import dev.shulker.format.ShulkWorldFolders;
 import dev.shulker.server.ShulkerConfig;
+import io.papermc.paper.world.saveddata.PaperLevelOverrides;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -495,6 +496,11 @@ public final class ShulkWorldManager implements ShulkWorlds {
         pooled.loader = saveTo;
         pooled.properties = properties;
         return this.reset(world, template).thenCompose(ignored -> onMain(() -> {
+            // The world keeps its own level data, so give it the template's spawn.
+            final PaperLevelOverrides.@Nullable RespawnData spawn = templateSpawn(((Template) template).world());
+            if (spawn != null) {
+                world.setSpawnLocation(new org.bukkit.Location(world, spawn.pos().getX(), spawn.pos().getY(), spawn.pos().getZ(), spawn.yaw(), spawn.pitch()));
+            }
             this.scheduleAutosave(pooled);
             new ShulkWorldLoadEvent(world, template.name()).callEvent();
             LOGGER.info("Shulk World {} created from {} out of the pool ({}) in {} ms", name, template.name(), pooled.key,
@@ -506,6 +512,25 @@ public final class ShulkWorldManager implements ShulkWorlds {
                 this.discardPooled(pooled);
             }
         });
+    }
+
+    private static final String LEVEL_OVERRIDES_FILE = "data/paper/level_overrides.dat";
+
+    /** The spawn stored in a template's level data, or null when it has none. */
+    private static PaperLevelOverrides.@Nullable RespawnData templateSpawn(final ShulkWorld template) {
+        final byte[] file = template.file(LEVEL_OVERRIDES_FILE);
+        if (file == null) {
+            return null;
+        }
+        try {
+            final net.minecraft.nbt.CompoundTag root = net.minecraft.nbt.NbtIo.readCompressed(new java.io.ByteArrayInputStream(file), net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+            return PaperLevelOverrides.RespawnData.CODEC
+                .parse(net.minecraft.nbt.NbtOps.INSTANCE, root.getCompoundOrEmpty("data").get("spawn"))
+                .result().orElse(null);
+        } catch (IOException | RuntimeException e) {
+            LOGGER.warn("Could not read the spawn of a template", e);
+            return null;
+        }
     }
 
     /** Unloads a pool world without saving and forgets it. */
