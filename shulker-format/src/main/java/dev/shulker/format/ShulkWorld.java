@@ -124,6 +124,16 @@ public final class ShulkWorld {
         return Set.copyOf(this.chunks.get(kind).keySet());
     }
 
+    /** Whether any chunk of the kind lies in the 32x32 region at the given region coordinates. */
+    public boolean hasRegion(final RegionKind kind, final int regionX, final int regionZ) {
+        for (long key : this.chunks.get(kind).keySet()) {
+            if (keyX(key) >> 5 == regionX && keyZ(key) >> 5 == regionZ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public int chunkCount(final RegionKind kind) {
         return this.chunks.get(kind).size();
     }

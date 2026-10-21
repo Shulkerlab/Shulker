@@ -18,6 +18,7 @@ public final class LeafCommands {
 
     static {
         COMMANDS.put(LeafCommand.COMMAND_LABEL, new LeafCommand());
+        COMMANDS.put(dev.shulker.server.command.ShulkerCommand.LABEL, new dev.shulker.server.command.ShulkerCommand()); // Shulker - Shulk Worlds
     }
 
     public static void registerCommands(final MinecraftServer server) {

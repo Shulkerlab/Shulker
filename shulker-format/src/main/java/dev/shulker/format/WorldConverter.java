@@ -190,11 +190,6 @@ public final class WorldConverter {
 
     /** Region folders are named region/, entities/ and poi/ in every world layout. */
     static RegionKind kindOf(final Path regionFile) {
-        return switch (regionFile.getParent().getFileName().toString()) {
-            case "region" -> RegionKind.CHUNK;
-            case "entities" -> RegionKind.ENTITIES;
-            case "poi" -> RegionKind.POI;
-            default -> RegionKind.OTHER;
-        };
+        return RegionKind.fromFolderName(regionFile.getParent().getFileName().toString());
     }
 }

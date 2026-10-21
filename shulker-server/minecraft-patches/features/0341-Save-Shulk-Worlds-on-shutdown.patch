@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ozan=20=C4=B0nce?=
+ <126924958+Aegyip@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 14:37:31 +0300
+Subject: [PATCH] Save Shulk Worlds on shutdown
+
+Once every level is saved and the region I/O is flushed, the Shulk World manager writes each loaded Shulk World back to its loader.
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index d20743b438bf0cd58ac15b0757e3410dc62cc03f..4e2c8ef47d4be7685cf6176a8ef39ad9a5a1cffe 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1141,6 +1141,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         LOGGER.info("Waiting for all RegionFile I/O tasks to complete...");
+         ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush((MinecraftServer)(Object)this);
+         LOGGER.info("All RegionFile I/O tasks to complete");
++        dev.shulker.server.world.ShulkWorldManager.serverStopped(); // Shulker - Shulk Worlds - write loaded worlds back
+         if ((Object)this instanceof net.minecraft.server.dedicated.DedicatedServer) {
+             ca.spottedleaf.moonrise.common.util.MoonriseCommon.haltExecutors();
+         }

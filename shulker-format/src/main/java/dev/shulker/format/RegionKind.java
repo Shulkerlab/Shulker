@@ -19,6 +19,16 @@ public enum RegionKind {
         };
     }
 
+    /** Maps a region folder name ("region", "entities", "poi") to a kind. */
+    public static RegionKind fromFolderName(final String folder) {
+        return switch (folder) {
+            case "region" -> CHUNK;
+            case "entities" -> ENTITIES;
+            case "poi" -> POI;
+            default -> OTHER;
+        };
+    }
+
     String id() {
         return this.name().toLowerCase(Locale.ROOT);
     }

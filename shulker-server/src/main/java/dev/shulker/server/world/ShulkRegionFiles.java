@@ -1,7 +1,9 @@
 package dev.shulker.server.world;
 
 import com.mojang.logging.LogUtils;
+import dev.shulker.format.RegionKind;
 import dev.shulker.format.ShulkRegion;
+import dev.shulker.format.ShulkWorld;
 import dev.shulker.server.ShulkerConfig;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,6 +28,8 @@ import org.slf4j.Logger;
  *   <li>Otherwise the world's format decides: {@code shulk} worlds create .shulk files and pull
  *       chunks over from an existing .mca file as they are saved; {@code mca} worlds stay
  *       vanilla.</li>
+ *   <li>Region folders of a loaded Shulk World ({@link ShulkWorldStorage}) never touch the disk:
+ *       they get a {@link ShulkWorldRegionFile} over the world's in-memory chunks.</li>
  *   <li>{@code storage.format: auto} makes new worlds (no .mca files anywhere) use .shulk and
  *       leaves existing .mca worlds alone.</li>
  * </ul>
@@ -42,10 +46,19 @@ public final class ShulkRegionFiles {
     }
 
     public static boolean exists(final Path mcaPath) {
+        final @Nullable ShulkWorld world = ShulkWorldStorage.forRegionFolder(mcaPath.getParent());
+        if (world != null) {
+            final int[] coords = regionCoords(mcaPath);
+            return world.hasRegion(RegionKind.fromFolderName(mcaPath.getParent().getFileName().toString()), coords[0], coords[1]);
+        }
         return Files.exists(mcaPath) || Files.exists(shulkPath(mcaPath));
     }
 
     public static RegionFile open(final RegionStorageInfo info, final Path mcaPath, final Path folder, final boolean sync) throws IOException {
+        final @Nullable ShulkWorld world = ShulkWorldStorage.forRegionFolder(folder);
+        if (world != null) {
+            return new ShulkWorldRegionFile(info, shulkPath(mcaPath), world); // a Shulk World: chunks live in memory
+        }
         final Path shulkPath = shulkPath(mcaPath);
         final boolean hasShulk = Files.exists(shulkPath);
         final boolean hasMca = Files.exists(mcaPath);

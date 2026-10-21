@@ -53,6 +53,9 @@ public final class ShulkerConfig {
     public static double coldRecompressionMaxMspt = 30.0;
     public static long chunkDataCacheSoftLimit = 8192L;
     public static long chunkDataCacheLimit = 32678L;
+    public static String shulkWorldsFolder = "shulker-worlds";
+    public static int shulkWorldsCompressionLevel = 6;
+    public static int shulkWorldsSaveThreads = 2;
 
     // ---- world generation ------------------------------------------------------------------
     public static boolean endBiomeCache = true;
@@ -136,6 +139,13 @@ public final class ShulkerConfig {
         chunkDataCacheLimit = integer("storage.chunk-data-cache.limit", (int) chunkDataCacheLimit,
             "Chunks waiting in memory to be written before writes are forced to disk, so pregeneration cannot run out of memory (C2ME).");
 
+        shulkWorldsFolder = string("shulk-worlds.folder", shulkWorldsFolder,
+            "Folder of the built-in Shulk World loader (\"file\"): one world-layout .shulk file per world, used by /shulker world and by plugins.");
+        shulkWorldsCompressionLevel = integer("shulk-worlds.compression-level", shulkWorldsCompressionLevel,
+            "zstd level for chunks of Shulk Worlds as they are saved into memory (1-19).");
+        shulkWorldsSaveThreads = integer("shulk-worlds.save-threads", shulkWorldsSaveThreads,
+            "Threads that serialize Shulk Worlds and hand them to their loader. Loaders may block (databases), so these never run on the tick thread.");
+
         endBiomeCache = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         endBiomeCache = bool("world-generation.end-biome-cache.enabled", endBiomeCache,
             "Cache End biome lookups during generation (C2ME). Assumes End biomes do not change with height, as in vanilla; "
@@ -173,6 +183,7 @@ public final class ShulkerConfig {
             "When the queue is full: caller_runs computes the new path on the tick thread, flush_all computes every queued path there.");
 
         dev.shulker.server.async.path.AsyncPathfinding.configure();
+        dev.shulker.server.world.ShulkWorldManager.install();
 
         try {
             config.save(file);
