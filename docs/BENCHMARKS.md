@@ -137,8 +137,9 @@ What this shows:
   time, and leaves the world loaded; unloading and recreating it took 136 ms.
 
 Paste and world-per-island were also measured on Shulker; the raw rows hold them. Pasting costs
-the same as on Paper. Loading a regular world folder took 50 ms of main-thread CPU on Shulker
-against 44 ms on Paper in an earlier run; the rest is Purpur's and Gale's per-world settings. Shulker compiles a
+the same as on Paper. Loading a regular world folder takes 64 ms of main-thread CPU on Shulker
+against 48 ms on Paper in these runs (50 against 44 ms in an earlier pair of runs); most of the
+difference is Purpur's and Gale's per-world settings. Shulker compiles a
 world's noise router (the C2ME density function compiler, which makes generation faster), but
 worlds copied from one template share it, and Shulk Worlds do not need one.
 
