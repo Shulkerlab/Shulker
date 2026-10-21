@@ -152,12 +152,12 @@ ortalaması:
 
 | | Shulk World (Shulker) | Ortak dünya + yapıştırma (Paper) | Ada başına dünya (Paper) |
 |---|---|---|---|
-| Yeni ada, ana thread CPU | 45.6 ms | 13.3 ms | 44.3 ms |
-| Yeni ada, en kötü tick | 198 ms | 823 ms | 97 ms |
-| Arena reset | 151 ms | 6.8 ms | 164 ms |
+| Yeni ada, ana thread CPU | 43.5 ms | 13.3 ms | 44.3 ms |
+| Yeni ada, en kötü tick | 149 ms | 823 ms | 97 ms |
+| Arena reset | 112 ms | 6.8 ms | 164 ms |
 | Ada başına disk | 6.6 KiB | 31.2 KiB | 4390 KiB |
 | Taşınacak veri | 6.6 KiB | 21.2 KiB | 4390 KiB |
-| Taşınan adanın yüklenmesi | 103 ms | — | 61 ms |
+| Taşınan adanın yüklenmesi | 90 ms | — | 61 ms |
 
 Bu sonuçlara giden yolda yapılan düzeltmeler:
 
@@ -170,8 +170,10 @@ Bu sonuçlara giden yolda yapılan düzeltmeler:
   42 ms ana thread CPU'ya indi.
 - **Çalışma sırasında açılan dünyalar `spigot.yml` ve `purpur.yml`'yi yeniden yazmıyor**
   (`WorldConfigSaves`, iki yama).
-- **C2ME düğümleri hash'lerini önbellekliyor:** normal arazili dünya açmak 222 ms'den 139 ms'ye
-  indi. Bu düzeltme Shulk World'lere değil, bütün çalışma zamanı dünyalarına yarıyor.
+- **C2ME düğümleri hash'lerini önbellekliyor**, ve aynı ayar ve seed'e sahip dünyalar tek bir
+  `RandomState`'i (derlenmiş gürültü yönlendiricisiyle birlikte) paylaşıyor. Şablondan kopyalanan
+  normal bir dünyayı açmak 222 ms'den 50 ms'ye indi (Paper: 44 ms). Bu düzeltmeler Shulk World'lere
+  değil, çalışma sırasında açılan bütün normal dünyalara yarıyor.
 - **Atılan dünya kaydedilmiyor:** `unload(world, false)` artık seviyeyi kaydetmiyor. Önceden ana
   thread Minecraft'ın veri dosyalarının paylaşılan bir I/O havuzunda yazılmasını bekliyordu; bir
   koşuda bu bekleme 23 saniyeyi bulmuştu.

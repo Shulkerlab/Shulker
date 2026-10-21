@@ -2,19 +2,19 @@
 <text x="0" y="16" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">New island: main-thread time</text>
 <text x="0" y="34" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">CPU per island from a template, lower is better</text>
 <text x="0" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulk World (Shulker)</text>
-<rect x="210" y="51" width="170.0" height="16" rx="3" fill="#8b5cf6"/>
-<text x="386.0" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">45.6 ms</text>
+<rect x="210" y="51" width="167.1" height="16" rx="3" fill="#8b5cf6"/>
+<text x="383.1" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">43.5 ms</text>
 <text x="0" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Shared world + paste (Paper)</text>
-<rect x="210" y="75" width="49.5" height="16" rx="3" fill="#9aa1ab"/>
-<text x="265.5" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">13.3 ms</text>
+<rect x="210" y="75" width="51.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="267.0" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">13.3 ms</text>
 <text x="0" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">World per island (Paper)</text>
-<rect x="210" y="99" width="165.0" height="16" rx="3" fill="#9aa1ab"/>
-<text x="381.0" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">44.3 ms</text>
+<rect x="210" y="99" width="170.0" height="16" rx="3" fill="#9aa1ab"/>
+<text x="386.0" y="111" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">44.3 ms</text>
 <text x="500" y="16" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">New island: worst tick</text>
 <text x="500" y="34" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">longest tick while 50 islands are created, lower is better</text>
 <text x="500" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulk World (Shulker)</text>
-<rect x="710" y="51" width="41.0" height="16" rx="3" fill="#8b5cf6"/>
-<text x="757.0" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">198 ms</text>
+<rect x="710" y="51" width="30.7" height="16" rx="3" fill="#8b5cf6"/>
+<text x="746.7" y="63" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">149 ms</text>
 <text x="500" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Shared world + paste (Paper)</text>
 <rect x="710" y="75" width="170.0" height="16" rx="3" fill="#9aa1ab"/>
 <text x="886.0" y="87" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">823 ms</text>
@@ -24,8 +24,8 @@
 <text x="0" y="166" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#768390">Arena reset</text>
 <text x="0" y="184" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">time until the arena is playable again, lower is better</text>
 <text x="0" y="213" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulk World (Shulker)</text>
-<rect x="210" y="201" width="156.5" height="16" rx="3" fill="#8b5cf6"/>
-<text x="372.5" y="213" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">151 ms</text>
+<rect x="210" y="201" width="116.4" height="16" rx="3" fill="#8b5cf6"/>
+<text x="332.4" y="213" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">112 ms</text>
 <text x="0" y="237" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">Shared world + paste (Paper)</text>
 <rect x="210" y="225" width="7.1" height="16" rx="3" fill="#9aa1ab"/>
 <text x="223.1" y="237" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">7 ms</text>
@@ -58,8 +58,8 @@
 <text x="500" y="334" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#8b949e">time until it is playable, lower is better</text>
 <text x="500" y="363" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#768390">Shulk World (Shulker)</text>
 <rect x="710" y="351" width="170.0" height="16" rx="3" fill="#8b5cf6"/>
-<text x="886.0" y="363" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">103 ms</text>
+<text x="886.0" y="363" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="700" fill="#768390">90 ms</text>
 <text x="500" y="387" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#768390">World per island (Paper)</text>
-<rect x="710" y="375" width="100.2" height="16" rx="3" fill="#9aa1ab"/>
-<text x="816.2" y="387" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">61 ms</text>
+<rect x="710" y="375" width="115.2" height="16" rx="3" fill="#9aa1ab"/>
+<text x="831.2" y="387" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#768390">61 ms</text>
 </svg>

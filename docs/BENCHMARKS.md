@@ -79,7 +79,7 @@ on another machine, so the two sets of numbers should not be compared with each 
 ### Setup
 
 - AMD Ryzen 5 2600 (12 threads), 16 GiB RAM, Windows 11, Temurin 25.0.4, 2 GiB heap.
-- Shulker at `d4d688f`, started with `--no-relaunch`, and Paper at `9240f586` (the base Shulker
+- Shulker at `7ea7f37`, started with `--no-relaunch`, and Paper at `9240f586` (the base Shulker
   builds on), started with Aikar's flags. Both from source, both with a flat default world and
   `pause-when-empty-seconds` off.
 - [`tools/world-bench`](../tools/world-bench) is a plugin that runs every scenario on the
@@ -110,13 +110,13 @@ moved island** is the time until that copy is playable on the target server.
 
 | | Shulk World (Shulker) | Shared world + paste (Paper) | World per island (Paper) |
 |---|---|---|---|
-| New island, main-thread time (ms) | 45.6 | **13.3** | 44.3 |
-| New island, wall-clock time (ms) | **90** | 531 | 157 |
-| New island, worst tick (ms) | 198 | 823 | **97** |
-| Arena reset (ms) | 151 | **6.8** | 164 |
+| New island, main-thread time (ms) | 43.5 | **13.3** | 44.3 |
+| New island, wall-clock time (ms) | **78** | 531 | 157 |
+| New island, worst tick (ms) | 149 | 823 | **97** |
+| Arena reset (ms) | 112 | **6.8** | 164 |
 | Disk space per island (KiB) | **6.6** | 31.2 | 4,390 |
 | Moving an island: data to copy (KiB) | **6.6** | 21.2 | 4,390 |
-| Loading a moved island (ms) | 103 | — | **61** |
+| Loading a moved island (ms) | 90 | — | **61** |
 
 Means of two runs; the best value in each row is bold. The worst-tick and wall-clock rows vary
 by up to 2x between runs on this machine.
@@ -131,12 +131,13 @@ What this shows:
   saved data). Pasting into a shared world is cheaper in CPU, but its synchronous chunk loads stall
   the tick far longer.
 - **Resets.** Re-pasting an arena in a loaded world is by far the fastest reset; it keeps the
-  arena's world loaded all the time. Recreating a Shulk World is on par with reloading a folder.
+  arena's world loaded all the time. Recreating a Shulk World is faster than reloading a folder.
 
 Paste and world-per-island were also measured on Shulker; the raw rows hold them. Pasting costs
-the same as on Paper. Loading regular world folders costs more main-thread time on Shulker
-(145 ms against 44 ms) because Shulker compiles every new world's noise router (the C2ME density
-function compiler, which makes generation faster); Shulk Worlds skip that.
+the same as on Paper. Loading a regular world folder takes 50 ms of main-thread CPU on Shulker
+against 44 ms on Paper; the rest is Purpur's and Gale's per-world settings. Shulker compiles a
+world's noise router (the C2ME density function compiler, which makes generation faster), but
+worlds copied from one template share it, and Shulk Worlds do not need one.
 
 [Advanced Slime Paper](https://github.com/InfernalSuite/AdvancedSlimePaper), the other Paper
 fork with single-file worlds, was not measured.

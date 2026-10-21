@@ -52,17 +52,17 @@ Paper, on the same machine (Ryzen 5 2600, Windows 11, 2 GiB heap), using
 
 - **Disk:** 6.6 KiB per island, against 31 KiB in a shared world and 4.3 MiB for a world folder.
 - **Main thread:** creating a Shulk World costs about as much as loading a world folder on Paper
-  (46 ms against 44 ms of CPU). Pasting is cheaper in CPU (13 ms) but stalls the tick for up to
-  0.8 s while it loads chunks.
+  (43.5 ms against 44.3 ms of CPU). Pasting is cheaper in CPU (13 ms) but stalls the tick for up
+  to 0.8 s while it loads chunks.
 - **Resets:** re-pasting an arena that stays loaded is still the fastest (7 ms). Recreating a Shulk
-  World (151 ms) is on par with reloading a world folder (164 ms).
+  World (112 ms) is faster than reloading a world folder (164 ms).
 
 ### Networks: moving worlds between servers
 
 A Shulk World is one byte array: `ShulkWorlds#serialize` on one server and `ShulkWorlds#load` on
 another move an island with 6.6 KiB of data, against 4.3 MiB for its world folder, and a plugin can
 keep every island in a shared database or object store through its own `ShulkWorldLoader`. Loading
-a moved island took 103 ms against 61 ms for a world folder on Paper.
+a moved island took 90 ms against 61 ms for a world folder on Paper.
 
 ## Shulker and other servers
 
@@ -162,8 +162,9 @@ see [below](#shulk-worlds). Worlds loaded while the server runs no longer rewrit
 `purpur.yml` each time.
 
 **World generation.** Leaf's density function compiler (from C2ME) is on in the performance
-profiles; its nodes cache their hashes, which cut the main-thread cost of creating a regular
-world at runtime by about a third. Every world generation change is checked with
+profiles. Its nodes cache their hashes and worlds with the same settings and seed share one
+compiled router, so loading a copied world while the server runs costs about what it does on
+Paper (50 ms against 44 ms of main-thread time) instead of three times as much. Every world generation change is checked with
 [`scripts/worldgen-parity-test.sh`](scripts/worldgen-parity-test.sh), which generates the same seed
 on a reference build and compares biomes and terrain chunk by chunk.
 
