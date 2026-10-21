@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.World;
 
 /** One Shulk World per island, created from a template in memory. Loaded only on Shulker. */
@@ -75,12 +76,28 @@ final class ShulkApproach extends Scenario {
                     .thenCompose(world -> this.bench.sync(() -> api().unload(world, false)).thenCompose(f -> f)))))
             .thenCompose(v -> this.bench.sync(() -> api().create("wbarena", this.template, null, ShulkWorldProperties.readOnlyWorld())).thenCompose(f -> f))
             .thenAccept(this.worlds::add)
-            // An arena reset: drop the played world, create it again from the template.
-            .thenCompose(v -> this.measure("minigame_reset", resets, () -> WorldBench.sequence(resets, r ->
+            // An arena reset the old way: drop the played world, create it again from the template.
+            .thenCompose(v -> this.measure("minigame_recreate", resets, () -> WorldBench.sequence(resets, r ->
                 this.bench.sync(() -> api().unload(this.worlds.removeFirst(), false)).thenCompose(f -> f)
                     .thenCompose(x -> this.bench.sync(() -> api().create("wbarena", this.template, null, ShulkWorldProperties.readOnlyWorld())).thenCompose(f -> f))
                     .thenAccept(this.worlds::add))))
-            .thenCompose(v -> this.bench.sync(() -> api().unload(this.worlds.removeFirst(), false)).thenCompose(f -> f))
+            // An arena reset in place: play (break and place blocks), then put the template's chunks back.
+            .thenCompose(v -> this.measure("minigame_reset", resets, () -> WorldBench.sequence(resets, r ->
+                this.bench.sync(() -> {
+                    this.play(this.worlds.getFirst());
+                    return api().reset(this.worlds.getFirst(), this.template);
+                }).thenCompose(f -> f))))
+            .thenCompose(v -> this.bench.sync(() -> {
+                final World arena = this.worlds.getFirst();
+                int leftovers = 0; // blocks the last game placed that the reset should have removed
+                for (int i = 0; i < 300; i++) {
+                    if (arena.getBlockAt(-10 + i % 20, 65 + i / 100, -10 + (i / 20) % 20).getType() == Material.COBBLESTONE) {
+                        leftovers++;
+                    }
+                }
+                this.bench.getLogger().info("Arena reset check: " + leftovers + " placed blocks left after the last reset (0 expected)");
+                return api().unload(this.worlds.removeFirst(), false);
+            }).thenCompose(f -> f))
             .thenCompose(v -> this.bench.async(() -> {
                 for (int i = 0; i < islands; i++) {
                     api().fileLoader().delete("wbi" + i).join();
@@ -89,7 +106,14 @@ final class ShulkApproach extends Scenario {
             }));
     }
 
-    private CompletableFuture<Void> waitForTemplate(final int attempt) {
+    /** The same blocks the shared-world reset breaks and places. */
+    private void play(final World world) {
+        for (int i = 0; i < 300; i++) {
+            world.getBlockAt(-10 + i % 20, 65 + i / 100, -10 + (i / 20) % 20).setType(i % 3 == 0 ? Material.AIR : Material.COBBLESTONE, false);
+        }
+    }
+
+        private CompletableFuture<Void> waitForTemplate(final int attempt) {
         return api().fileLoader().exists("wbtpl").thenCompose(exists -> {
             if (exists || attempt > 200) {
                 return CompletableFuture.completedFuture(null);
