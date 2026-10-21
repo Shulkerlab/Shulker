@@ -24,33 +24,36 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ShulkWorldRegionFile extends RegionFile {
 
-    private final ShulkWorld world;
+    private final ShulkWorldStorage.Registered registered;
     private final RegionKind kind;
-    private final boolean dropEmpty;
 
-    ShulkWorldRegionFile(final RegionStorageInfo info, final Path path, final ShulkWorld world, final boolean dropEmpty) {
+    ShulkWorldRegionFile(final RegionStorageInfo info, final Path path, final ShulkWorldStorage.Registered registered) {
         super(info, path);
-        this.world = world;
+        this.registered = registered;
         this.kind = RegionKind.fromStorageType(info.type());
-        this.dropEmpty = dropEmpty;
+    }
+
+    /** Resolved on every access: a reset swaps the world's chunks while the level stays loaded. */
+    private ShulkWorld world() {
+        return this.registered.world;
     }
 
     // ---- reading ---------------------------------------------------------------------------
 
     @Override
     public @Nullable DataInputStream getChunkDataInputStream(final ChunkPos pos) {
-        final byte[] raw = this.world.read(this.kind, pos.x(), pos.z());
+        final byte[] raw = this.world().read(this.kind, pos.x(), pos.z());
         return raw == null ? null : new DataInputStream(new ByteArrayInputStream(raw));
     }
 
     @Override
     public boolean doesChunkExist(final ChunkPos pos) {
-        return this.world.has(this.kind, pos.x(), pos.z());
+        return this.world().has(this.kind, pos.x(), pos.z());
     }
 
     @Override
     public boolean hasChunk(final ChunkPos pos) {
-        return this.world.has(this.kind, pos.x(), pos.z());
+        return this.world().has(this.kind, pos.x(), pos.z());
     }
 
     // ---- writing ---------------------------------------------------------------------------
@@ -59,11 +62,11 @@ public final class ShulkWorldRegionFile extends RegionFile {
     public ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData moonrise$startWrite(
         final CompoundTag data, final ChunkPos pos
     ) {
-        if (this.dropEmpty && EmptyChunks.isEmpty(this.kind, data)) {
+        if (this.registered.dropEmpty && EmptyChunks.isEmpty(this.kind, data)) {
             // Nothing in it, and the void generator makes the same chunk again: do not store it.
             return new ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData(
                 data, ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.RegionDataController.WriteData.WriteResult.WRITE,
-                new DataOutputStream(java.io.OutputStream.nullOutputStream()), regionFile -> this.world.delete(this.kind, pos.x(), pos.z())
+                new DataOutputStream(java.io.OutputStream.nullOutputStream()), regionFile -> this.clear(pos)
             );
         }
         final ChunkBytes buffer = new ChunkBytes();
@@ -89,12 +92,17 @@ public final class ShulkWorldRegionFile extends RegionFile {
     }
 
     private void writeChunk(final ChunkPos pos, final byte[] raw) {
-        this.world.write(this.kind, pos.x(), pos.z(), raw, (int) (System.currentTimeMillis() / 1000L), ShulkerConfig.shulkWorldsCompressionLevel);
+        if (this.registered.discardWrites) {
+            return;
+        }
+        this.world().write(this.kind, pos.x(), pos.z(), raw, (int) (System.currentTimeMillis() / 1000L), ShulkerConfig.shulkWorldsCompressionLevel);
     }
 
     @Override
     public void clear(final ChunkPos pos) {
-        this.world.delete(this.kind, pos.x(), pos.z());
+        if (!this.registered.discardWrites) {
+            this.world().delete(this.kind, pos.x(), pos.z());
+        }
     }
 
     // ---- lifecycle: nothing to flush or close, the world lives in memory --------------------

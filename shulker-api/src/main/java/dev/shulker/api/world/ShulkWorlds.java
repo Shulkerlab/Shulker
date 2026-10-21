@@ -149,6 +149,21 @@ public interface ShulkWorlds {
     CompletableFuture<byte[]> serialize(World world);
 
     /**
+     * Puts the chunks of a template back into a loaded Shulk World without unloading it: the
+     * arena reset of minigames. Players are moved to the main world's spawn, the world's chunks
+     * are unloaded without being saved, and the template's chunks take their place; the world
+     * itself, its settings, game rules, UUID and persistent data stay as they are.
+     *
+     * <p>Plugins must not keep chunks of the world loaded meanwhile (plugin chunk tickets and
+     * force-loaded chunks are released first); the reset fails if chunks stay loaded.
+     *
+     * @param world    a loaded Shulk World
+     * @param template the chunks to put in place, usually the template it was created from
+     * @return completes on the main thread once the world can be played again
+     */
+    CompletableFuture<Void> reset(World world, ShulkWorldTemplate template);
+
+    /**
      * Unloads a Shulk World, moving its players to the main world's spawn first.
      *
      * @param world a loaded Shulk World

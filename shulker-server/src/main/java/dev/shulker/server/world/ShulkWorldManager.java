@@ -7,6 +7,7 @@ import dev.shulker.api.world.ShulkWorldTemplate;
 import dev.shulker.api.world.ShulkWorlds;
 import dev.shulker.api.world.event.ShulkWorldLoadEvent;
 import dev.shulker.api.world.event.ShulkWorldPreSaveEvent;
+import dev.shulker.api.world.event.ShulkWorldResetEvent;
 import dev.shulker.api.world.event.ShulkWorldSaveEvent;
 import dev.shulker.api.world.event.ShulkWorldUnloadEvent;
 import dev.shulker.format.ShulkWorld;
@@ -101,7 +102,9 @@ public final class ShulkWorldManager implements ShulkWorlds {
     /** A loaded (or loading) Shulk World. */
     static final class Loaded {
         final String name;
-        final ShulkWorld data;
+        /** Replaced by a reset; saves read it once and work on that instance. */
+        volatile ShulkWorld data;
+        volatile ShulkWorldStorage.@Nullable Registered registered;
         final Path folder;
         final @Nullable ShulkWorldLoader loader;
         final ShulkWorldProperties properties;
@@ -323,7 +326,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
             }
         }, this.io).thenCompose(ignored -> onMain(() -> {
             final long start = System.nanoTime();
-            ShulkWorldStorage.register(folder, data, properties.generator() == null);
+            loaded.registered = ShulkWorldStorage.register(folder, data, properties.generator() == null);
             final World world;
             try {
                 world = Bukkit.createWorld(WorldCreator.ofKey(key(name))
@@ -489,6 +492,124 @@ public final class ShulkWorldManager implements ShulkWorlds {
                 });
             }
         }, seconds, seconds, TimeUnit.SECONDS);
+    }
+
+    // ---- resetting -------------------------------------------------------------------------
+
+    /** How often, and how many times, a reset checks whether the world's chunks are gone. */
+    private static final long RESET_POLL_MILLIS = 5;
+    private static final int RESET_TIMEOUT_POLLS = 2000;
+    /** Unload passes per check; each unloads a fraction of what is queued. */
+    private static final int RESET_UNLOAD_PASSES = 16;
+
+    @Override
+    public CompletableFuture<Void> reset(final World world, final ShulkWorldTemplate template) {
+        final Loaded loaded = this.loaded(world);
+        final ShulkWorld chunks = ((Template) template).world();
+        final long start = System.nanoTime();
+        return loaded.lastSave.handle((ignored, error) -> null).thenCompose(ignored -> onMain(() -> {
+            final ShulkWorldStorage.Registered registered = requireRegistered(loaded);
+            final World spawn = Bukkit.getWorlds().getFirst();
+            for (Player player : List.copyOf(world.getPlayers())) {
+                player.teleport(spawn.getSpawnLocation());
+            }
+            registered.discardWrites = true; // the old chunks are thrown away, not saved
+            for (org.bukkit.Chunk chunk : List.copyOf(world.getForceLoadedChunks())) {
+                chunk.setForceLoaded(false);
+            }
+            for (Plugin plugin : List.copyOf(world.getPluginChunkTickets().keySet())) {
+                world.removePluginChunkTickets(plugin);
+            }
+            drainChunks(world);
+            return null;
+        })).thenCompose(ignored -> this.awaitNoChunks(world, 0)).thenCompose(ignored -> onMain(() -> {
+            final ShulkWorldStorage.Registered registered = requireRegistered(loaded);
+            final ServerLevel level = ((CraftWorld) world).getHandle();
+            ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(level); // writes of the old chunks are done
+            final ShulkWorld old = loaded.data;
+            final ShulkWorld fresh = chunks.copy();
+            for (String path : fresh.filePaths()) {
+                fresh.removeFile(path);
+            }
+            for (String path : old.filePaths()) { // the world keeps its own settings, UUID and data
+                final byte[] contents = old.file(path);
+                if (contents != null) {
+                    fresh.putFile(path, contents);
+                }
+            }
+            for (Map.Entry<String, String> property : old.properties().entrySet()) {
+                fresh.setProperty(property.getKey(), property.getValue());
+            }
+            loaded.data = fresh;
+            registered.world = fresh;
+            registered.discardWrites = false;
+            loaded.savedModifications = -1; // the next save writes the reset world
+            new ShulkWorldResetEvent(world, template.name()).callEvent();
+            LOGGER.info("Shulk World {} reset to {} ({} chunks) in {} ms", loaded.name, template.name(), fresh.chunkCount(dev.shulker.format.RegionKind.CHUNK),
+                String.format(Locale.ROOT, "%.1f", (System.nanoTime() - start) / 1e6));
+            return (Void) null;
+        })).whenComplete((ignored, error) -> {
+            final ShulkWorldStorage.Registered registered = loaded.registered;
+            if (error != null && registered != null) {
+                registered.discardWrites = false;
+            }
+        });
+    }
+
+    /**
+     * Drives the chunk system of an emptied world until it holds no chunks at all. Loaded chunks
+     * are not enough: an unloaded chunk keeps its holder for a while and comes back from memory,
+     * not from storage. Unloads finish asynchronously (their chunk and entity data is handed to the
+     * I/O threads), so this polls every few milliseconds rather than once per tick.
+     */
+    private CompletableFuture<Void> awaitNoChunks(final World world, final int polls) {
+        return onMain(() -> drainChunks(world)).thenCompose(count -> {
+            if (count == 0) {
+                return CompletableFuture.completedFuture(null);
+            }
+            if (polls >= RESET_TIMEOUT_POLLS) {
+                return CompletableFuture.failedFuture(new IllegalStateException(
+                    count + " chunks of " + world.getName() + " stay loaded (a plugin holds them?); reset aborted"));
+            }
+            return CompletableFuture.supplyAsync(() -> null, CompletableFuture.delayedExecutor(RESET_POLL_MILLIS, TimeUnit.MILLISECONDS))
+                .thenCompose(next -> this.awaitNoChunks(world, polls + 1));
+        });
+    }
+
+    /**
+     * Nothing keeps an emptied world except tickets that expire on their own: chunk load tickets
+     * linger for a few ticks, refused unloads get a 5 s cooldown, and the chunk system unloads a
+     * fraction of its queue per tick. The world is being thrown away, so this runs its ticket clock
+     * and unloads forward. Returns how many chunk holders are left.
+     */
+    private static int drainChunks(final World world) {
+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager holders = chunkHolders(world);
+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler scheduler =
+            ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) ((CraftWorld) world).getHandle()).moonrise$getChunkTaskScheduler();
+        for (int pass = 0; pass < RESET_UNLOAD_PASSES && holders.size() > 0; pass++) {
+            holders.removeAllTicketsFor(ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.UNLOAD_COOLDOWN,
+                ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.MAX_TICKET_LEVEL, null);
+            holders.tick();
+            holders.processTicketUpdates();
+            for (int task = 0; task < 4096 && scheduler.executeMainThreadTask(); task++) {
+                // demote the chunks whose tickets went away, so they reach the unload queue
+            }
+            holders.processUnloads();
+        }
+        return holders.size();
+    }
+
+    private static ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager chunkHolders(final World world) {
+        return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) ((CraftWorld) world).getHandle())
+            .moonrise$getChunkTaskScheduler().chunkHolderManager;
+    }
+
+    private static ShulkWorldStorage.Registered requireRegistered(final Loaded loaded) {
+        final ShulkWorldStorage.Registered registered = loaded.registered;
+        if (registered == null || loaded.world == null) {
+            throw new IllegalStateException(loaded.name + " is not loaded");
+        }
+        return registered;
     }
 
     // ---- unloading -------------------------------------------------------------------------

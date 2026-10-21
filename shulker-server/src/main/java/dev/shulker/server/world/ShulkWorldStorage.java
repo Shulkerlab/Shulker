@@ -12,8 +12,20 @@ import org.jspecify.annotations.Nullable;
  */
 final class ShulkWorldStorage {
 
-    /** A registered world: its chunks, and whether empty chunks are dropped instead of stored. */
-    record Registered(ShulkWorld world, boolean dropEmpty) {
+    /**
+     * A registered world. Region files resolve {@link #world} on every access, so a reset can
+     * swap the chunks of a loaded world; while {@link #discardWrites} is set, chunk writes are
+     * dropped (a reset unloads the old chunks without keeping them).
+     */
+    static final class Registered {
+        volatile ShulkWorld world;
+        volatile boolean discardWrites;
+        final boolean dropEmpty;
+
+        Registered(final ShulkWorld world, final boolean dropEmpty) {
+            this.world = world;
+            this.dropEmpty = dropEmpty;
+        }
     }
 
     /** Dimension folder (absolute, normalized) -> the world's chunks. */
@@ -22,8 +34,10 @@ final class ShulkWorldStorage {
     private ShulkWorldStorage() {
     }
 
-    static void register(final Path dimensionFolder, final ShulkWorld world, final boolean dropEmpty) {
-        WORLDS.put(key(dimensionFolder), new Registered(world, dropEmpty));
+    static Registered register(final Path dimensionFolder, final ShulkWorld world, final boolean dropEmpty) {
+        final Registered registered = new Registered(world, dropEmpty);
+        WORLDS.put(key(dimensionFolder), registered);
+        return registered;
     }
 
     static void unregister(final Path dimensionFolder) {

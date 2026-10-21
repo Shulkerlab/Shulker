@@ -34,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  * /shulker world create &lt;name&gt; &lt;template&gt; [loader]
  * /shulker world save &lt;world&gt;
  * /shulker world unload &lt;world&gt; [no-save]
+ * /shulker world reset &lt;world&gt; &lt;template&gt;
  * /shulker world capture &lt;world&gt; &lt;template&gt;
  * /shulker world tp &lt;world&gt;
  * /shulker world import &lt;folder&gt; &lt;name&gt;
@@ -48,7 +49,7 @@ public final class ShulkerCommand extends Command {
 
     public static final String LABEL = "shulker";
     public static final String PERMISSION = "shulker.command.world";
-    private static final List<String> SUBCOMMANDS = List.of("list", "info", "load", "create", "save", "unload", "capture", "tp", "import", "export");
+    private static final List<String> SUBCOMMANDS = List.of("list", "info", "load", "create", "save", "unload", "reset", "capture", "tp", "import", "export");
 
     public ShulkerCommand() {
         super(LABEL);
@@ -100,6 +101,13 @@ public final class ShulkerCommand extends Command {
                     final World world = this.world(worlds, arg(rest, 0, "world"));
                     final boolean save = !(rest.length > 1 && rest[1].equalsIgnoreCase("no-save"));
                     report(sender, worlds.unload(world, save), done -> "Unloaded " + rest[0] + (save ? "" : " without saving"));
+                }
+                case "reset" -> {
+                    final World world = this.world(worlds, arg(rest, 0, "world"));
+                    final String template = arg(rest, 1, "template");
+                    final long start = System.nanoTime();
+                    report(sender, worlds.readTemplate(worlds.fileLoader(), template).thenCompose(t -> worlds.reset(world, t)),
+                        done -> "Reset " + rest[0] + " to " + template + " in " + millis(start));
                 }
                 case "capture" -> {
                     final World world = this.world(worlds, arg(rest, 0, "world"));
@@ -212,7 +220,7 @@ public final class ShulkerCommand extends Command {
             final ShulkWorldManager worlds = ShulkWorldManager.get();
             final List<String> names = new ArrayList<>();
             switch (args[1].toLowerCase(Locale.ROOT)) {
-                case "info", "save", "unload", "capture", "tp" -> worlds.worlds().forEach(world -> names.add(worlds.name(world)));
+                case "info", "save", "unload", "reset", "capture", "tp" -> worlds.worlds().forEach(world -> names.add(worlds.name(world)));
                 default -> {
                 }
             }
