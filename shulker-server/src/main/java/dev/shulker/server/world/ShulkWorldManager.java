@@ -513,6 +513,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
         onMain(() -> {
             final World world = pooled.world;
             if (world != null) {
+                discardSavedData(world);
                 Bukkit.unloadWorld(world, false);
                 pooled.world = null;
             }
@@ -735,6 +736,15 @@ public final class ShulkWorldManager implements ShulkWorlds {
         return holders.size();
     }
 
+    /**
+     * Unloading a world closes its saved data storage, which writes every changed saved data file
+     * (raids, world border, game rules, ...) and waits for the writes, even when the world is not
+     * saved; on a busy disk that held the main thread for over 10 s. A discarded world drops them.
+     */
+    private static void discardSavedData(final World world) {
+        ((CraftWorld) world).getHandle().getDataStorage().cache.values().forEach(data -> data.ifPresent(saved -> saved.setDirty(false)));
+    }
+
     private static ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager chunkHolders(final World world) {
         return ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) ((CraftWorld) world).getHandle())
             .moonrise$getChunkTaskScheduler().chunkHolderManager;
@@ -765,6 +775,9 @@ public final class ShulkWorldManager implements ShulkWorlds {
             }
             // A world that is not written back is discarded: saving it, even into memory, would only
             // make the main thread wait for Minecraft's level data files to be written.
+            if (!(save && loaded.writesBack())) {
+                discardSavedData(world);
+            }
             if (!Bukkit.unloadWorld(world, save && loaded.writesBack())) {
                 throw new IllegalStateException("The server refused to unload " + loaded.name);
             }

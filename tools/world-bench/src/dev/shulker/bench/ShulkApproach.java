@@ -19,6 +19,7 @@ final class ShulkApproach extends Scenario {
     private ShulkWorldTemplate template;
     private long heapBefore;
     private byte[] moved;
+    private double idleBefore;
 
     ShulkApproach(final WorldBench bench, final FolderApproach folder) {
         super(bench, "shulk");
@@ -79,6 +80,7 @@ final class ShulkApproach extends Scenario {
             .thenCompose(v -> this.bench.settle(40))
             .thenCompose(v -> this.bench.sync(() -> {
                 this.probe.baselineEnd();
+                this.idleBefore = this.probe.idleMillisPerTick();
                 this.probe.start();
                 api().setPoolSize(islands);
                 return null;
@@ -87,6 +89,16 @@ final class ShulkApproach extends Scenario {
             .thenRun(() -> {
                 this.bench.record(this.name, "pool_fill", "main_cpu_ms_per_op", this.probe.mainCpuMillis() / islands, "ms");
                 this.bench.record(this.name, "pool_fill", "wall_ms_per_op", this.probe.wallMillis() / islands, "ms");
+            })
+            // What keeping the pool loaded costs every tick, with nothing happening in it.
+            .thenCompose(v -> this.bench.sync(() -> {
+                this.probe.baselineStart();
+                return null;
+            }))
+            .thenCompose(v -> this.bench.settle(100))
+            .thenRun(() -> {
+                this.probe.baselineEnd();
+                this.bench.record(this.name, "pool_idle", "main_ms_per_tick", this.probe.idleMillisPerTick() - this.idleBefore, "ms");
             })
             .thenCompose(v -> this.measure("skyblock_create_pooled", islands, () -> WorldBench.sequence(islands, i ->
                 this.bench.sync(() -> api().create("wbp" + i, this.template, api().fileLoader(), ShulkWorldProperties.defaults()))

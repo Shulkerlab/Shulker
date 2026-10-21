@@ -33,6 +33,11 @@ final class Probe {
         this.idleRate = (double) (THREADS.getThreadCpuTime(this.mainThread) - this.cpuStart) / (System.nanoTime() - this.wallStart);
     }
 
+    /** Idle main-thread CPU per 50 ms tick, from the last baseline. */
+    double idleMillisPerTick() {
+        return this.idleRate * 50.0;
+    }
+
     void start() {
         this.cpuStart = THREADS.getThreadCpuTime(this.mainThread);
         this.wallStart = System.nanoTime();
