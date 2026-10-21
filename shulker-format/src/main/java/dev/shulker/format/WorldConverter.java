@@ -41,6 +41,15 @@ public final class WorldConverter {
     }
 
     public static void main(final String[] args) throws IOException {
+        try {
+            run(args);
+        } catch (IOException | IllegalArgumentException e) {
+            System.err.println("Error: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+
+    private static void run(final String[] args) throws IOException {
         if (args.length < 2 || args.length > 4) {
             System.err.println("usage: WorldConverter <world dir | world .shulk file> shulk|mca|verify [region|world] [output]");
             System.exit(2);
