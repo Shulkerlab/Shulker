@@ -56,6 +56,9 @@ public final class ShulkerConfig {
     public static String shulkWorldsFolder = "shulker-worlds";
     public static int shulkWorldsCompressionLevel = 6;
     public static int shulkWorldsSaveThreads = 2;
+    public static int shulkWorldsPoolSize = 0;
+    public static int shulkWorldsPoolRefillTicks = 10;
+    public static double shulkWorldsPoolMaxMspt = 40.0;
 
     // ---- world generation ------------------------------------------------------------------
     public static boolean endBiomeCache = true;
@@ -145,6 +148,13 @@ public final class ShulkerConfig {
             "zstd level for chunks of Shulk Worlds as they are saved into memory (1-19).");
         shulkWorldsSaveThreads = integer("shulk-worlds.save-threads", shulkWorldsSaveThreads,
             "Threads that serialize Shulk Worlds and hand them to their loader. Loaders may block (databases), so these never run on the tick thread.");
+        shulkWorldsPoolSize = integer("shulk-worlds.pool.size", shulkWorldsPoolSize,
+            "Empty Shulk Worlds kept loaded and ready. Creating a void world from a template then takes one and resets it, "
+                + "instead of creating a world; plugins can change the size at runtime. 0 turns the pool off.");
+        shulkWorldsPoolRefillTicks = integer("shulk-worlds.pool.refill-interval-ticks", shulkWorldsPoolRefillTicks,
+            "At most one pool world is opened every this many ticks.");
+        shulkWorldsPoolMaxMspt = dbl("shulk-worlds.pool.max-mspt", shulkWorldsPoolMaxMspt,
+            "The pool is only refilled while the average tick time is below this many milliseconds.");
 
         endBiomeCache = ShulkerProfile.current() != ShulkerProfile.VANILLA;
         endBiomeCache = bool("world-generation.end-biome-cache.enabled", endBiomeCache,

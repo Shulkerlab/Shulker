@@ -164,6 +164,34 @@ public interface ShulkWorlds {
     CompletableFuture<Void> reset(World world, ShulkWorldTemplate template);
 
     /**
+     * Sets how many empty worlds the server keeps loaded and ready. While the pool has one,
+     * {@link #create} for a void world in the normal environment takes it and
+     * {@linkplain #reset resets} it to the template instead of creating a world, which keeps
+     * world creation out of the moment a player waits for it. The pool refills in the background,
+     * one world at a time while the server has tick time to spare. 0 turns the pool off.
+     *
+     * <p>A world taken from the pool keeps the dimension key it was opened with,
+     * {@code shulker:pool/<n>}; look it up by its name with {@link #world(String)}.
+     *
+     * @param size worlds to keep ready, zero or more
+     */
+    void setPoolSize(int size);
+
+    /**
+     * The pool size set by {@link #setPoolSize} or {@code shulk-worlds.pool.size}.
+     *
+     * @return worlds the pool aims to keep ready
+     */
+    int poolSize();
+
+    /**
+     * Empty worlds ready in the pool right now.
+     *
+     * @return ready pool worlds
+     */
+    int pooledWorlds();
+
+    /**
      * Unloads a Shulk World, moving its players to the main world's spawn first.
      *
      * @param world a loaded Shulk World
@@ -190,7 +218,8 @@ public interface ShulkWorlds {
 
     /**
      * A loaded Shulk World by its Shulk World name. Its Bukkit key is {@code shulker:<name>}
-     * (the dimension vanilla commands see) and its Bukkit name {@code shulker_<name>}.
+     * (the dimension vanilla commands see) and its Bukkit name {@code shulker_<name>}, except
+     * for worlds taken from the pool, which keep {@code shulker:pool/<n>}.
      *
      * @param name Shulk World name
      * @return the world, or null when it is not loaded

@@ -82,7 +82,15 @@ public final class ShulkWorldManager implements ShulkWorlds {
     private final Map<String, RegisteredLoader> loaders = new ConcurrentHashMap<>();
     /** Loaded worlds by name, including ones still being opened (to refuse a second load). */
     private final Map<String, Loaded> worlds = new ConcurrentHashMap<>();
+    /** Every loaded or loading world, pooled ones included, by the path of its dimension key. */
+    private final Map<String, Loaded> byKey = new ConcurrentHashMap<>();
     private final AtomicBoolean cleanedUp = new AtomicBoolean();
+    /** Empty worlds kept loaded so that creating a world only has to reset one. */
+    private final java.util.concurrent.ConcurrentLinkedDeque<Loaded> pool = new java.util.concurrent.ConcurrentLinkedDeque<>();
+    private volatile int poolSize;
+    /** Pool worlds being opened right now. Main thread only. */
+    private int poolOpening;
+    private final java.util.concurrent.atomic.AtomicLong poolCounter = new java.util.concurrent.atomic.AtomicLong();
 
     private record RegisteredLoader(@Nullable Plugin plugin, ShulkWorldLoader loader) {
     }
@@ -101,20 +109,23 @@ public final class ShulkWorldManager implements ShulkWorlds {
 
     /** A loaded (or loading) Shulk World. */
     static final class Loaded {
-        final String name;
+        /** Path of the dimension key {@code shulker:<key>}; fixed, unlike the name of a pooled world. */
+        final String key;
+        volatile String name;
         /** Replaced by a reset; saves read it once and work on that instance. */
         volatile ShulkWorld data;
         volatile ShulkWorldStorage.@Nullable Registered registered;
         final Path folder;
-        final @Nullable ShulkWorldLoader loader;
-        final ShulkWorldProperties properties;
+        volatile @Nullable ShulkWorldLoader loader;
+        volatile ShulkWorldProperties properties;
         volatile @Nullable World world;
         volatile @Nullable ScheduledFuture<?> autosave;
         /** Saves of one world run one after the other. */
         CompletableFuture<?> lastSave = CompletableFuture.completedFuture(null);
         volatile long savedModifications = -1;
 
-        Loaded(final String name, final ShulkWorld data, final Path folder, final @Nullable ShulkWorldLoader loader, final ShulkWorldProperties properties) {
+        Loaded(final String key, final String name, final ShulkWorld data, final Path folder, final @Nullable ShulkWorldLoader loader, final ShulkWorldProperties properties) {
+            this.key = key;
             this.name = name;
             this.data = data;
             this.folder = folder;
@@ -141,6 +152,16 @@ public final class ShulkWorldManager implements ShulkWorlds {
         });
         this.fileLoader = new ShulkWorldFileLoader(Path.of(ShulkerConfig.shulkWorldsFolder), this.io);
         this.loaders.put(FILE_LOADER, new RegisteredLoader(null, this.fileLoader));
+        this.poolSize = Math.max(0, ShulkerConfig.shulkWorldsPoolSize);
+        final long interval = Math.max(1, ShulkerConfig.shulkWorldsPoolRefillTicks) * 50L;
+        this.autosaver.scheduleWithFixedDelay(() -> {
+            if (server() != null && server().isReady() && server().isRunning()) {
+                onMain(() -> {
+                    this.tendPool();
+                    return null;
+                });
+            }
+        }, interval, interval, TimeUnit.MILLISECONDS);
     }
 
     /** Called once on startup, after shulker.yml is read. */
@@ -255,22 +276,28 @@ public final class ShulkWorldManager implements ShulkWorlds {
         checkName(name);
         return loader.read(name)
             .thenApplyAsync(ShulkWorldManager::parse, this.io)
-            .thenCompose(data -> this.open(name, data, loader, properties, null));
+            .thenCompose(data -> this.open(name, name, data, loader, properties, null));
     }
 
     @Override
     public CompletableFuture<World> create(final String name, final ShulkWorldTemplate template, final @Nullable ShulkWorldLoader saveTo, final ShulkWorldProperties properties) {
         checkName(name);
+        if (properties.generator() == null && properties.environment() == World.Environment.NORMAL) {
+            final Loaded pooled = this.pool.poll();
+            if (pooled != null) {
+                return this.takeFromPool(pooled, name, template, saveTo, properties);
+            }
+        }
         final ShulkWorld data = ((Template) template).world().copy();
         data.removeFile(METADATA_FILE); // a new world, so a new UUID
-        return this.open(name, data, saveTo, properties, template.name());
+        return this.open(name, name, data, saveTo, properties, template.name());
     }
 
     @Override
     public CompletableFuture<World> load(final String name, final byte[] data, final @Nullable ShulkWorldLoader saveTo, final ShulkWorldProperties properties) {
         checkName(name);
         return CompletableFuture.supplyAsync(() -> parse(data), this.io)
-            .thenCompose(world -> this.open(name, world, saveTo, properties, null));
+            .thenCompose(world -> this.open(name, name, world, saveTo, properties, null));
     }
 
     private static ShulkWorld parse(final byte[] bytes) {
@@ -303,13 +330,19 @@ public final class ShulkWorldManager implements ShulkWorlds {
         return world;
     }
 
-    private CompletableFuture<World> open(final String name, final ShulkWorld data, final @Nullable ShulkWorldLoader loader,
+    /**
+     * Opens a world under the dimension {@code shulker:<key>}. Named worlds use their name as the
+     * key; pool worlds ({@code name == null}) get a {@code pool/<n>} key and stay out of the
+     * name map until they are taken.
+     */
+    private CompletableFuture<World> open(final String key, final @Nullable String name, final ShulkWorld data, final @Nullable ShulkWorldLoader loader,
                                           final ShulkWorldProperties properties, final @Nullable String template) {
-        final Path folder = dimensionFolder(name);
-        final Loaded loaded = new Loaded(name, data, folder, loader, properties);
-        if (Bukkit.getWorld(key(name)) != null || this.worlds.putIfAbsent(name, loaded) != null) {
-            return CompletableFuture.failedFuture(new IllegalStateException("A world named " + name + " is already loaded"));
+        final Path folder = dimensionFolder(key);
+        final Loaded loaded = new Loaded(key, name == null ? key : name, data, folder, loader, properties);
+        if (Bukkit.getWorld(key(key)) != null || this.byKey.containsKey(key) || name != null && this.worlds.putIfAbsent(name, loaded) != null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("A world named " + (name == null ? key : name) + " is already loaded"));
         }
+        this.byKey.put(key, loaded);
         if (properties.generator() == null) {
             // Void worlds generate nothing, so they need no noise settings: drop stored ones (a
             // world imported from a regular world carries them) and start on a flat base, which
@@ -329,7 +362,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
             loaded.registered = ShulkWorldStorage.register(folder, data, properties.generator() == null);
             final World world;
             try {
-                world = Bukkit.createWorld(WorldCreator.ofKey(key(name))
+                world = Bukkit.createWorld(WorldCreator.ofKey(key(key))
                     .environment(properties.environment())
                     .type(properties.generator() == null ? org.bukkit.WorldType.FLAT : org.bukkit.WorldType.NORMAL)
                     .generator(properties.generator() != null ? properties.generator() : VoidChunkGenerator.INSTANCE));
@@ -339,10 +372,14 @@ public final class ShulkWorldManager implements ShulkWorlds {
             }
             if (world == null) {
                 ShulkWorldStorage.unregister(folder);
-                throw new IllegalStateException("The server refused to create world " + name);
+                throw new IllegalStateException("The server refused to create world " + key);
             }
             loaded.world = world;
             loaded.savedModifications = data.modifications();
+            if (name == null) {
+                LOGGER.debug("Pool world {} ready in {} ms", key, (System.nanoTime() - start) / 1_000_000);
+                return world;
+            }
             this.scheduleAutosave(loaded);
             new ShulkWorldLoadEvent(world, template).callEvent();
             LOGGER.info("Shulk World {} {} ({} chunks, {} KiB) in {} ms on the main thread", name, template == null ? "loaded" : "created from " + template,
@@ -350,7 +387,10 @@ public final class ShulkWorldManager implements ShulkWorlds {
             return world;
         })).whenComplete((world, error) -> {
             if (error != null) {
-                this.worlds.remove(name, loaded);
+                if (name != null) {
+                    this.worlds.remove(name, loaded);
+                }
+                this.byKey.remove(key, loaded);
                 this.io.execute(() -> deleteQuietly(folder));
             }
         });
@@ -360,8 +400,8 @@ public final class ShulkWorldManager implements ShulkWorlds {
         return new NamespacedKey(NAMESPACE, name);
     }
 
-    /** The Shulk World name of a world in the {@code shulker} namespace, else null. */
-    private static @Nullable String nameOf(final World world) {
+    /** The dimension key path of a world in the {@code shulker} namespace, else null. */
+    private static @Nullable String keyOf(final World world) {
         final NamespacedKey key = world.getKey();
         return key.getNamespace().equals(NAMESPACE) ? key.getKey() : null;
     }
@@ -371,20 +411,116 @@ public final class ShulkWorldManager implements ShulkWorlds {
         return server().storageSource.getDimensionPath(key).toAbsolutePath().normalize();
     }
 
-    /** Folders of Shulk Worlds that were loaded when the server last stopped without unloading them. */
-    private void cleanUpLeftovers() throws IOException {
+    /**
+     * Folders of Shulk Worlds that were loaded when the server last stopped without unloading them.
+     * Runs before the first world of this run writes its files, and every other open waits for it.
+     */
+    private synchronized void cleanUpLeftovers() throws IOException {
         if (this.cleanedUp.compareAndSet(false, true)) {
             final Path root = dimensionFolder("x").getParent();
             if (root != null && Files.isDirectory(root)) {
                 try (Stream<Path> folders = Files.list(root)) {
                     for (Path folder : folders.toList()) {
-                        if (!this.worlds.containsKey(folder.getFileName().toString())) {
-                            deleteRecursively(folder);
-                        }
+                        deleteRecursively(folder);
                     }
                 }
             }
         }
+    }
+
+    // ---- pool ------------------------------------------------------------------------------
+
+    @Override
+    public void setPoolSize(final int size) {
+        if (size < 0) {
+            throw new IllegalArgumentException("Pool size must not be negative");
+        }
+        this.poolSize = size;
+    }
+
+    @Override
+    public int poolSize() {
+        return this.poolSize;
+    }
+
+    @Override
+    public int pooledWorlds() {
+        return this.pool.size();
+    }
+
+    /**
+     * Runs every few ticks on the main thread: opens one pool world while the pool is short and the
+     * server has tick time to spare, or discards one while the pool is too large.
+     */
+    private void tendPool() {
+        if (this.pool.size() > this.poolSize) {
+            final Loaded extra = this.pool.pollLast();
+            if (extra != null) {
+                this.discardPooled(extra);
+            }
+            return;
+        }
+        if (this.pool.size() + this.poolOpening >= this.poolSize || this.poolOpening > 0
+            || Bukkit.getAverageTickTime() > ShulkerConfig.shulkWorldsPoolMaxMspt) {
+            return;
+        }
+        this.poolOpening++;
+        final String key = "pool/" + this.poolCounter.incrementAndGet();
+        this.open(key, null, new ShulkWorld(), null, ShulkWorldProperties.builder().autosave(java.time.Duration.ZERO).build(), null)
+            .whenComplete((world, error) -> onMain(() -> {
+                this.poolOpening--;
+                final Loaded opened = this.byKey.get(key);
+                if (error != null || opened == null) {
+                    LOGGER.warn("Could not open pool world {}", key, error == null ? null : unwrap(error));
+                } else {
+                    this.pool.add(opened);
+                }
+                return null;
+            }));
+    }
+
+    /** Gives a pool world a name and its template's chunks: a new world without createWorld. */
+    private CompletableFuture<World> takeFromPool(final Loaded pooled, final String name, final ShulkWorldTemplate template,
+                                                  final @Nullable ShulkWorldLoader saveTo, final ShulkWorldProperties properties) {
+        final World world = pooled.world;
+        if (world == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Pool world " + pooled.key + " is gone"));
+        }
+        if (this.worlds.putIfAbsent(name, pooled) != null) {
+            this.pool.addFirst(pooled);
+            return CompletableFuture.failedFuture(new IllegalStateException("A world named " + name + " is already loaded"));
+        }
+        final long start = System.nanoTime();
+        pooled.name = name;
+        pooled.loader = saveTo;
+        pooled.properties = properties;
+        return this.reset(world, template).thenCompose(ignored -> onMain(() -> {
+            this.scheduleAutosave(pooled);
+            new ShulkWorldLoadEvent(world, template.name()).callEvent();
+            LOGGER.info("Shulk World {} created from {} out of the pool ({}) in {} ms", name, template.name(), pooled.key,
+                String.format(Locale.ROOT, "%.1f", (System.nanoTime() - start) / 1e6));
+            return world;
+        })).whenComplete((done, error) -> {
+            if (error != null) {
+                this.worlds.remove(name, pooled);
+                this.discardPooled(pooled);
+            }
+        });
+    }
+
+    /** Unloads a pool world without saving and forgets it. */
+    private void discardPooled(final Loaded pooled) {
+        onMain(() -> {
+            final World world = pooled.world;
+            if (world != null) {
+                Bukkit.unloadWorld(world, false);
+                pooled.world = null;
+            }
+            ShulkWorldStorage.unregister(pooled.folder);
+            this.byKey.remove(pooled.key, pooled);
+            this.io.execute(() -> deleteQuietly(pooled.folder));
+            return null;
+        });
     }
 
     // ---- saving ----------------------------------------------------------------------------
@@ -639,6 +775,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
                 if (loaded.world == null) {
                     ShulkWorldStorage.unregister(loaded.folder);
                     this.worlds.remove(loaded.name, loaded);
+                    this.byKey.remove(loaded.key, loaded);
                     deleteQuietly(loaded.folder);
                 }
             }, this.io);
@@ -651,9 +788,14 @@ public final class ShulkWorldManager implements ShulkWorlds {
      */
     public static void serverStopped() {
         final ShulkWorldManager manager = instance;
-        if (manager == null || manager.worlds.isEmpty()) {
+        if (manager == null || manager.byKey.isEmpty()) {
             return;
         }
+        for (Loaded pooled : List.copyOf(manager.pool)) { // empty and never saved
+            ShulkWorldStorage.unregister(pooled.folder);
+            deleteQuietly(pooled.folder);
+        }
+        manager.pool.clear();
         for (Loaded loaded : List.copyOf(manager.worlds.values())) {
             if (loaded.world == null) {
                 continue;
@@ -678,6 +820,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
             deleteQuietly(loaded.folder);
         }
         manager.worlds.clear();
+        manager.byKey.clear();
         manager.autosaver.shutdownNow();
         manager.io.shutdown();
     }
@@ -707,10 +850,11 @@ public final class ShulkWorldManager implements ShulkWorlds {
         return loaded == null ? null : loaded.name;
     }
 
+    /** The named Shulk World behind a world; pool worlds are not Shulk Worlds until taken. */
     private @Nullable Loaded find(final World world) {
-        final String name = nameOf(world);
-        final Loaded loaded = name == null ? null : this.worlds.get(name);
-        return loaded != null && loaded.world == world ? loaded : null;
+        final String key = keyOf(world);
+        final Loaded loaded = key == null ? null : this.byKey.get(key);
+        return loaded != null && loaded.world == world && this.worlds.get(loaded.name) == loaded ? loaded : null;
     }
 
     @Override

@@ -35,6 +35,7 @@ import org.jspecify.annotations.Nullable;
  * /shulker world save &lt;world&gt;
  * /shulker world unload &lt;world&gt; [no-save]
  * /shulker world reset &lt;world&gt; &lt;template&gt;
+ * /shulker world pool [size]
  * /shulker world capture &lt;world&gt; &lt;template&gt;
  * /shulker world tp &lt;world&gt;
  * /shulker world import &lt;folder&gt; &lt;name&gt;
@@ -49,7 +50,7 @@ public final class ShulkerCommand extends Command {
 
     public static final String LABEL = "shulker";
     public static final String PERMISSION = "shulker.command.world";
-    private static final List<String> SUBCOMMANDS = List.of("list", "info", "load", "create", "save", "unload", "reset", "capture", "tp", "import", "export");
+    private static final List<String> SUBCOMMANDS = List.of("list", "info", "load", "create", "save", "unload", "reset", "pool", "capture", "tp", "import", "export");
 
     public ShulkerCommand() {
         super(LABEL);
@@ -108,6 +109,12 @@ public final class ShulkerCommand extends Command {
                     final long start = System.nanoTime();
                     report(sender, worlds.readTemplate(worlds.fileLoader(), template).thenCompose(t -> worlds.reset(world, t)),
                         done -> "Reset " + rest[0] + " to " + template + " in " + millis(start));
+                }
+                case "pool" -> {
+                    if (rest.length > 0) {
+                        worlds.setPoolSize(Integer.parseInt(rest[0]));
+                    }
+                    sender.sendMessage(Component.text("World pool: " + worlds.pooledWorlds() + " of " + worlds.poolSize() + " ready", NamedTextColor.AQUA));
                 }
                 case "capture" -> {
                     final World world = this.world(worlds, arg(rest, 0, "world"));
