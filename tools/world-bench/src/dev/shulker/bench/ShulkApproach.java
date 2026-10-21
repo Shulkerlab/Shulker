@@ -71,6 +71,34 @@ final class ShulkApproach extends Scenario {
             .thenCompose(v -> this.measure("skyblock_unload", islands, () -> WorldBench.sequence(islands, i ->
                 this.bench.sync(() -> api().unload(this.worlds.get(i), false)).thenCompose(f -> f))))
             .thenRun(this.worlds::clear)
+            // The pool: fill it in the background (measured as a whole), then create islands from it.
+            .thenCompose(v -> this.bench.sync(() -> {
+                this.probe.baselineStart();
+                return null;
+            }))
+            .thenCompose(v -> this.bench.settle(40))
+            .thenCompose(v -> this.bench.sync(() -> {
+                this.probe.baselineEnd();
+                this.probe.start();
+                api().setPoolSize(islands);
+                return null;
+            }))
+            .thenCompose(v -> this.waitForPool(islands, 0))
+            .thenRun(() -> {
+                this.bench.record(this.name, "pool_fill", "main_cpu_ms_per_op", this.probe.mainCpuMillis() / islands, "ms");
+                this.bench.record(this.name, "pool_fill", "wall_ms_per_op", this.probe.wallMillis() / islands, "ms");
+            })
+            .thenCompose(v -> this.measure("skyblock_create_pooled", islands, () -> WorldBench.sequence(islands, i ->
+                this.bench.sync(() -> api().create("wbp" + i, this.template, api().fileLoader(), ShulkWorldProperties.defaults()))
+                    .thenCompose(future -> future)
+                    .thenAccept(this.worlds::add))))
+            .thenCompose(v -> this.bench.sync(() -> {
+                api().setPoolSize(0);
+                return null;
+            }))
+            .thenCompose(v -> WorldBench.sequence(islands, i -> this.bench.sync(() -> api().unload(this.worlds.get(i), false)).thenCompose(f -> f)))
+            .thenRun(this.worlds::clear)
+            .thenCompose(v -> this.waitForPool(0, 0))
             .thenCompose(v -> this.measure("cross_server_load", 10, () -> WorldBench.sequence(10, i ->
                 this.bench.sync(() -> api().load("wbmoved", this.moved, null, ShulkWorldProperties.defaults())).thenCompose(f -> f)
                     .thenCompose(world -> this.bench.sync(() -> api().unload(world, false)).thenCompose(f -> f)))))
@@ -101,9 +129,18 @@ final class ShulkApproach extends Scenario {
             .thenCompose(v -> this.bench.async(() -> {
                 for (int i = 0; i < islands; i++) {
                     api().fileLoader().delete("wbi" + i).join();
+                    api().fileLoader().delete("wbp" + i).join();
                 }
                 return null;
             }));
+    }
+
+    /** Waits until the pool holds {@code target} ready worlds (at most about five minutes). */
+    private CompletableFuture<Void> waitForPool(final int target, final int attempt) {
+        if (api().pooledWorlds() == target || attempt > 3000) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return this.bench.settle(2).thenCompose(v -> this.waitForPool(target, attempt + 1));
     }
 
     /** The same blocks the shared-world reset breaks and places. */
