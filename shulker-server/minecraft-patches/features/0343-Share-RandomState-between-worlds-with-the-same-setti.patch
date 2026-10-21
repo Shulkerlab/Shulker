@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ozan=20=C4=B0nce?=
+ <126924958+Aegyip@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 21:57:05 +0300
+Subject: [PATCH] Share RandomState between worlds with the same settings and
+ seed
+
+Everything in a RandomState follows from the noise settings, the noise registry and the seed, and is immutable or a concurrent cache. Worlds copied from one template share them, so they now share one RandomState instead of each wiring and compiling the noise router again on the main thread. Loaded worlds keep their state alive through weak references; the last four also stay strongly reachable, for a world unloaded and loaded again right away.
+
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index a97568724f545891de9d2142a14386c5910a9545..febe3358472af4e3a6e6b37dbdd445d6996dc8a3 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -206,7 +206,7 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+         }
+         if (randomGenerator instanceof NoiseBasedChunkGenerator noiseGenerator) {
+             // CraftBukkit end
+-            this.randomState = RandomState.create(noiseGenerator.generatorSettings().value(), registryAccess.lookupOrThrow(Registries.NOISE), levelSeed);
++            this.randomState = RandomState.createShared(noiseGenerator.generatorSettings().value(), registryAccess.lookupOrThrow(Registries.NOISE), levelSeed); // Shulker - share RandomState between worlds with the same settings and seed
+         } else {
+             this.randomState = RandomState.create(NoiseGeneratorSettings.dummy(), registryAccess.lookupOrThrow(Registries.NOISE), levelSeed);
+         }
+diff --git a/net/minecraft/world/level/levelgen/RandomState.java b/net/minecraft/world/level/levelgen/RandomState.java
+index d5f1c65ab7f5922f8473faad5f5718ff0867d629..e7c736e0b93c351bdd68009a031429a9f90c4efa 100644
+--- a/net/minecraft/world/level/levelgen/RandomState.java
++++ b/net/minecraft/world/level/levelgen/RandomState.java
+@@ -32,6 +32,52 @@ public final class RandomState {
+         return new RandomState(settings, noises, seed);
+     }
+ 
++    // Shulker start - share RandomState between worlds with the same settings and seed
++    /**
++     * Like {@link #create(NoiseGeneratorSettings, HolderGetter, long)}, for settings from a registry.
++     * Everything in a RandomState follows from these three and is immutable or a concurrent
++     * cache, so worlds copied from one template (same seed) can share one instead of each wiring
++     * and compiling the noise router again on the main thread.
++     */
++    public static RandomState createShared(final NoiseGeneratorSettings settings, final HolderGetter<NormalNoise.NoiseParameters> noises, final long seed) {
++        final SharedKey key = new SharedKey(settings, noises, seed);
++        synchronized (SHARED) {
++            final java.lang.ref.WeakReference<RandomState> cached = SHARED.get(key);
++            RandomState state = cached == null ? null : cached.get();
++            if (state == null) {
++                state = new RandomState(settings, noises, seed);
++                SHARED.values().removeIf(reference -> reference.get() == null);
++                SHARED.put(key, new java.lang.ref.WeakReference<>(state));
++            }
++            // Loaded worlds keep their state alive; the last few also stay for a world that is
++            // unloaded and loaded again right away, such as an arena reset.
++            RECENT.remove(state);
++            RECENT.addFirst(state);
++            if (RECENT.size() > RECENT_KEPT) {
++                RECENT.removeLast();
++            }
++            return state;
++        }
++    }
++
++    private static final int RECENT_KEPT = 4;
++    private static final Map<SharedKey, java.lang.ref.WeakReference<RandomState>> SHARED = new HashMap<>(); // guarded by itself
++    private static final java.util.ArrayDeque<RandomState> RECENT = new java.util.ArrayDeque<>(); // guarded by SHARED
++
++    /** Compares settings and noise registry by identity: equal-looking settings from different registries stay apart. */
++    private record SharedKey(NoiseGeneratorSettings settings, HolderGetter<NormalNoise.NoiseParameters> noises, long seed) {
++        @Override
++        public boolean equals(final Object other) {
++            return other instanceof SharedKey key && key.settings == this.settings && key.noises == this.noises && key.seed == this.seed;
++        }
++
++        @Override
++        public int hashCode() {
++            return 31 * (31 * System.identityHashCode(this.settings) + System.identityHashCode(this.noises)) + Long.hashCode(this.seed);
++        }
++    }
++    // Shulker end - share RandomState between worlds with the same settings and seed
++
+     private RandomState(final NoiseGeneratorSettings settings, final HolderGetter<NormalNoise.NoiseParameters> noises, final long seed) {
+         this.random = settings.getRandomSource().newInstance(seed).forkPositional();
+         this.noises = noises;
