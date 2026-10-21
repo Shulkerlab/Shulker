@@ -12,11 +12,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Converts a whole world between {@code .mca} and {@code .shulk} while the server is stopped.
  *
- * <pre>java -cp .shulker/boot.jar dev.shulker.format.WorldConverter &lt;world dir&gt; shulk|mca|verify</pre>
+ * <pre>java -cp .shulker/boot.jar dev.shulker.format.WorldConverter &lt;world dir&gt; shulk|mca|verify [region|world] [output]</pre>
+ *
+ * <p>With {@code world}, a world folder becomes one world-layout {@code .shulk} file and the folder
+ * is left untouched. Given a world-layout file instead of a folder, {@code verify} checks it and
+ * {@code shulk}/{@code mca} export it to a world folder with region files of that format.
  *
  * <p>Every region is written, read back and compared chunk by chunk before its source file is
  * deleted, so an interrupted run leaves both files and can simply be run again. When both
@@ -36,11 +41,16 @@ public final class WorldConverter {
     }
 
     public static void main(final String[] args) throws IOException {
-        if (args.length != 2) {
-            System.err.println("usage: WorldConverter <world dir> shulk|mca|verify");
+        if (args.length < 2 || args.length > 4) {
+            System.err.println("usage: WorldConverter <world dir | world .shulk file> shulk|mca|verify [region|world] [output]");
             System.exit(2);
         }
         final Path world = Path.of(args[0]);
+        final boolean worldLayout = args.length > 2 && args[2].equalsIgnoreCase("world");
+        final @Nullable Path output = args.length > 3 ? Path.of(args[3]) : null;
+        if (Files.isRegularFile(world)) {
+            System.exit(worldFile(world, args[1].toLowerCase(Locale.ROOT), output));
+        }
         if (args[1].equalsIgnoreCase("verify")) {
             final Verification check = verify(world);
             System.out.printf(Locale.ROOT, "Checked %d .shulk regions, %d chunks: %d unreadable, %d damaged entries%n",
@@ -48,9 +58,63 @@ public final class WorldConverter {
             System.exit(check.ok() ? 0 : 1);
         }
         final Target target = Target.valueOf(args[1].toUpperCase(Locale.ROOT));
+        if (worldLayout) {
+            if (target != Target.SHULK) {
+                throw new IllegalArgumentException("The world layout only exists as .shulk");
+            }
+            final Path file = output != null ? output : Path.of("shulker-worlds", world.toAbsolutePath().normalize().getFileName() + ShulkWorld.EXTENSION);
+            final long before = folderSize(world);
+            final ShulkWorld imported = ShulkWorldFolders.importFolder(world);
+            imported.write(file);
+            final ShulkWorld check = ShulkWorld.read(file); // fails on any damage
+            for (RegionKind kind : RegionKind.values()) {
+                if (check.chunkCount(kind) != imported.chunkCount(kind)) {
+                    throw new IOException("Verification failed for " + file);
+                }
+            }
+            System.out.printf(Locale.ROOT, "Wrote %s: %d chunks, %.1f MiB -> %.1f KiB (%s was left untouched)%n", file,
+                check.chunkCount(RegionKind.CHUNK), before / 1048576.0, Files.size(file) / 1024.0, world);
+            System.exit(0);
+        }
         final Result result = convert(world, target, System.out::println);
         System.out.printf(Locale.ROOT, "Converted %d regions, %d chunks: %.1f MiB -> %.1f MiB%n",
             result.regions(), result.chunks(), result.bytesBefore() / 1048576.0, result.bytesAfter() / 1048576.0);
+    }
+
+    /** Verifies a world-layout file, or exports it to a world folder with region files. */
+    private static int worldFile(final Path file, final String target, final @Nullable Path output) throws IOException {
+        if (!ShulkWorld.isWorldFile(file)) {
+            System.err.println(file + " is not a world .shulk file; pass its world folder to convert region files");
+            return 2;
+        }
+        final ShulkWorld world = ShulkWorld.read(file);
+        if (target.equals("verify")) {
+            int chunks = 0;
+            for (RegionKind kind : RegionKind.values()) {
+                for (long key : world.chunkKeys(kind)) {
+                    world.read(kind, ShulkWorld.keyX(key), ShulkWorld.keyZ(key)); // checks each zstd frame
+                    chunks++;
+                }
+            }
+            System.out.printf(Locale.ROOT, "Checked %s: %d chunks and %d files are intact%n", file, chunks, world.filePaths().size());
+            return 0;
+        }
+        final String name = file.getFileName().toString();
+        final Path folder = output != null ? output : file.resolveSibling(name.substring(0, name.length() - ShulkWorld.EXTENSION.length()));
+        final ShulkWorldFolders.RegionFormat format = target.equals("mca") ? ShulkWorldFolders.RegionFormat.MCA : ShulkWorldFolders.RegionFormat.SHULK;
+        ShulkWorldFolders.exportFolder(world, folder, format);
+        System.out.printf(Locale.ROOT, "Exported %s to %s with .%s region files%n", file, folder, target);
+        return 0;
+    }
+
+    private static long folderSize(final Path folder) throws IOException {
+        long total = 0;
+        try (Stream<Path> files = Files.walk(folder)) {
+            for (Path path : (Iterable<Path>) files.filter(Files::isRegularFile)::iterator) {
+                total += Files.size(path);
+            }
+        }
+        return total;
     }
 
     public static Result convert(final Path world, final Target target, final Consumer<String> log) throws IOException {
