@@ -506,7 +506,9 @@ public final class ShulkWorldManager implements ShulkWorlds {
             if (autosave != null) {
                 autosave.cancel(false);
             }
-            if (!Bukkit.unloadWorld(world, true)) { // always flush into memory; whether it is kept is decided below
+            // A world that is not written back is discarded: saving it, even into memory, would only
+            // make the main thread wait for Minecraft's level data files to be written.
+            if (!Bukkit.unloadWorld(world, save && loaded.writesBack())) {
                 throw new IllegalStateException("The server refused to unload " + loaded.name);
             }
             loaded.world = null;
