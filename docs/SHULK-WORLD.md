@@ -104,6 +104,7 @@ if (ShulkWorlds.isAvailable()) {                       // Paper'da false
 | `create(name, template, saveTo, properties)` | şablondan yeni dünya |
 | `save(world)`, `serialize(world)`, `unload(world, save)` | kayıt ve boşaltma |
 | `reset(world, template)` | yerinde reset: şablonun chunk'larını yüklü dünyaya geri koyar |
+| `setPoolSize(n)`, `poolSize()`, `pooledWorlds()` | hazır dünya havuzu |
 | `isShulkWorld`, `world(name)`, `name(world)`, `properties(world)`, `worlds()` | sorgular |
 
 `ShulkWorldProperties`: environment, read-only, otomatik kayıt aralığı (varsayılan 5 dakika, `ZERO`
@@ -131,6 +132,7 @@ kalıyor.
 /shulker world load <isim> [loader] [read-only]
 /shulker world create <isim> <şablon> [loader]
 /shulker world save <w> | unload <w> [no-save] | reset <w> <şablon> | capture <w> <şablon>
+/shulker world pool [boyut]
 /shulker world import <klasör> <isim> | export <isim> <klasör> [shulk|mca]
 ```
 
@@ -152,22 +154,30 @@ dönüştürülmeli.
 | `shulk-worlds.folder` | `shulker-worlds` | dosya loader'ının klasörü |
 | `shulk-worlds.compression-level` | `6` | belleğe kaydedilen chunk'ların zstd seviyesi |
 | `shulk-worlds.save-threads` | `2` | serileştirme ve loader thread'leri |
+| `shulk-worlds.pool.size` | `0` | hazır tutulan boş dünya sayısı (0 = havuz kapalı) |
+| `shulk-worlds.pool.refill-interval-ticks` | `10` | en fazla bu kadar tick'te bir havuz dünyası açılır |
+| `shulk-worlds.pool.max-mspt` | `40` | havuz yalnızca ortalama tick bunun altındayken doldurulur |
 
 ## 8. Ölçümler
 
 Ayrıntılar ve ham veriler: [BENCHMARKS.md](BENCHMARKS.md#islands-and-arenas-world-systems).
-Ryzen 5 2600, Windows 11, 2 GiB heap, `tools/world-bench`, 50 ada ve 20 arena reset'i, aynı gece
-iki sunucuda ikişer koşunun ortalaması:
+Ryzen 5 2600, Windows 11, 2 GiB heap, `tools/world-bench`, 50 ada ve 20 arena reset'i, 2026-10-22'de
+Shulker ve Paper'da sırayla ikişer koşunun ortalaması:
 
-| | Shulk World (Shulker) | Ortak dünya + yapıştırma (Paper) | Ada başına dünya (Paper) |
-|---|---|---|---|
-| Yeni ada, ana thread CPU | 53.6 ms | 19.1 ms | 47.7 ms |
-| Yeni ada, en kötü tick | 177 ms | 967 ms | 121 ms |
-| Arena reset (Shulk: yerinde) | 73 ms | 7.3 ms | 158 ms |
-| Arena reset, ana thread CPU | 20.1 ms | 8.0 ms | 37.8 ms |
-| Ada başına disk | 6.5 KiB | 31.4 KiB | 4794 KiB |
-| Taşınacak veri | 6.5 KiB | 21.2 KiB | 4794 KiB |
-| Taşınan adanın yüklenmesi | 114 ms | — | 62 ms |
+| | Shulk World, havuzdan | Shulk World | Ortak dünya + yapıştırma (Paper) | Ada başına dünya (Paper) |
+|---|---|---|---|---|
+| Yeni ada, ana thread CPU | 3.0 ms | 45.6 ms | 16.1 ms | 57.9 ms |
+| Yeni ada, süre | 0.8 ms | 79 ms | 552 ms | 738 ms |
+| Yeni ada, en kötü tick | 80 ms | 175 ms | 896 ms | 1194 ms |
+| Arena reset (Shulk: yerinde) | | 65 ms | 7.0 ms | 174 ms |
+| Arena reset, ana thread CPU | | 10.7 ms | 7.6 ms | 43.6 ms |
+| Ada başına disk | | 6.6 KiB | 31.3 KiB | 4390 KiB |
+| Taşınacak veri | | 6.6 KiB | 21.3 KiB | 4390 KiB |
+| Taşınan adanın yüklenmesi | | 63 ms | — | 79 ms |
+
+Havuzun bedeli arka planda ödeniyor: doldurmak dünya başına 41 ms ana thread tuttu (en fazla 10
+tick'te bir dünya, ortalama tick 40 ms'nin altındayken); 50 boş havuz dünyası boşta tick başına
+0.8–1.9 ms ekliyor. Paper'ın klasör sayılarında bir koşudaki takılmalar var (BENCHMARKS.md, not 1).
 
 Bu sonuçlara giden yolda yapılan düzeltmeler:
 
@@ -184,6 +194,19 @@ Bu sonuçlara giden yolda yapılan düzeltmeler:
   `RandomState`'i (derlenmiş gürültü yönlendiricisiyle birlikte) paylaşıyor. Şablondan kopyalanan
   normal bir dünyayı açmak 222 ms'den 50 ms'ye indi (Paper: 44 ms). Bu düzeltmeler Shulk World'lere
   değil, çalışma sırasında açılan bütün normal dünyalara yarıyor.
+- **Havuz (`shulk-worlds.pool.size`, `ShulkWorlds#setPoolSize`):** sunucu boş Shulk World'leri
+  yüklü tutuyor; void ve normal ortamlı bir `create` havuzdan bir dünya alıp şablona yerinde reset
+  ediyor. Havuz dünyaları `shulker:pool/<n>` anahtarıyla açılıyor ve alınınca bu anahtarı koruyor;
+  adaya `ShulkWorlds#world(name)` ile ulaşılmalı. Alınan dünya şablonun spawn'ını alıyor.
+- **Void dünyaların sabit spawn'ı** (0.5, 64, 0.5): spawn'ı olmayan bir void dünya açılırken sunucu
+  zemin arıyor ve void'de chunk üstüne chunk yüklüyordu; havuz doldurulurken bu bir tick'i 2.2 s
+  tuttu.
+- **Atılan dünyaların kayıtlı verisi yazılmıyor:** Minecraft dünya boşaltırken, kaydedilmese bile,
+  kayıtlı veri dosyalarını yazıp bekliyor; bu ölçümlerde 15–28 s'lik takılmalara yol açtı.
+- **Klasörler yavaş bir çöpten siliniyor** (`FolderTrash`): çok sayıda dünya birden atılınca
+  klasörlerin hemen silinmesi Windows'ta yeni açılan dünyaların dosya işlemlerini saniyelerce
+  yavaşlatıyordu; klasörler artık `.shulker/trash/`'e taşınıp düşük öncelikli bir thread'de dosya
+  dosya siliniyor.
 - **Atılan dünya kaydedilmiyor:** `unload(world, false)` artık seviyeyi kaydetmiyor. Önceden ana
   thread Minecraft'ın veri dosyalarının paylaşılan bir I/O havuzunda yazılmasını bekliyordu; bir
   koşuda bu bekleme 23 saniyeyi bulmuştu.
