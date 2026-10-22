@@ -150,12 +150,14 @@ public interface ShulkWorlds {
 
     /**
      * Puts the chunks of a template back into a loaded Shulk World without unloading it: the
-     * arena reset of minigames. Players are moved to the main world's spawn, the world's chunks
-     * are unloaded without being saved, and the template's chunks take their place; the world
-     * itself, its settings, game rules, UUID and persistent data stay as they are.
+     * arena reset of minigames. Only what changed is touched: loaded chunks a game changed get
+     * the template's blocks, block entities and entities back, as a paste would, and stay loaded;
+     * changed chunks that are not loaded are swapped in memory. Players stay where they are. The
+     * world itself, its settings, game rules, UUID and persistent data stay as they are.
      *
-     * <p>Plugins must not keep chunks of the world loaded meanwhile (plugin chunk tickets and
-     * force-loaded chunks are released first); the reset fails if chunks stay loaded.
+     * <p>When a changed chunk is held half-loaded by the server, the reset instead moves players
+     * to the main world's spawn, releases plugin chunk tickets and force-loaded chunks, and unloads
+     * the world's chunks without saving them; it fails if a plugin keeps them loaded.
      *
      * @param world    a loaded Shulk World
      * @param template the chunks to put in place, usually the template it was created from

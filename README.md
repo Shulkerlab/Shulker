@@ -50,20 +50,20 @@ them with both usual ways on Paper, on the same machine (Ryzen 5 2600, Windows 1
 using [`tools/world-bench`](tools/world-bench); the setup and every number are in
 [docs/BENCHMARKS.md](docs/BENCHMARKS.md#islands-and-arenas-world-systems).
 
-- **New island:** from the pool in 0.8 ms and 3 ms of main-thread time, against 16 ms of CPU and
-  a 0.9 s tick stall for pasting, and 58 ms for loading a world folder. Without the pool a Shulk
-  World takes 46 ms. The pool refills in the background while ticks have time to spare.
-- **Disk:** 6.6 KiB per island, against 31 KiB in a shared world and 4.3 MiB for a world folder.
-- **Resets:** re-pasting an arena that stays loaded is still the fastest (7 ms). A Shulk World is
-  reset in place, without unloading it, in 65 ms and 11 ms of main-thread time, against 174 ms
-  and 44 ms for reloading a world folder.
+- **New island:** from the pool in 0.7 ms and 5 ms of main-thread time, against 15 ms of CPU and
+  a 0.8 s tick stall for pasting, and 42 ms for loading a world folder. Without the pool a Shulk
+  World takes 41 ms. The pool refills in the background while ticks have time to spare.
+- **Arena resets:** a Shulk World is reset in place as fast as a paste, 5.4 ms with the players'
+  view kept loaded: only the blocks of the chunks a game changed are set back. Reloading a world
+  folder, view included, took 2.8 s.
+- **Disk:** 6.5 KiB per island, against 31 KiB in a shared world and 6.5 MiB for a world folder.
 
 ### Networks: moving worlds between servers
 
 A Shulk World is one byte array: `ShulkWorlds#serialize` on one server and `ShulkWorlds#load` on
-another move an island with 6.6 KiB of data, against 4.3 MiB for its world folder, and a plugin can
+another move an island with 6.5 KiB of data, against 6.5 MiB for its world folder, and a plugin can
 keep every island in a shared database or object store through its own `ShulkWorldLoader`. Loading
-a moved island took 63 ms against 79 ms for a world folder on Paper.
+a moved island took 53 ms against 55 ms for a world folder on Paper.
 
 ## Shulker and other servers
 

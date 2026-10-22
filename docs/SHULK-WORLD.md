@@ -113,13 +113,25 @@ ile kapalı), generator (varsayılan void).
 Event'ler (ana thread): `ShulkWorldLoadEvent`, `ShulkWorldPreSaveEvent`, `ShulkWorldSaveEvent`,
 `ShulkWorldResetEvent`, `ShulkWorldUnloadEvent`.
 
-**Yerinde reset** (`reset`): oyuncular ana dünyanın spawn'ına taşınır, eklenti chunk ticket'ları ve
-forceload'lar bırakılır, dünyanın chunk'ları yazmaları düşürülerek boşaltılır ve bellekteki chunk'lar
-şablonun kopyasıyla değiştirilir. Dünya, ayarları, oyun kuralları, UUID'si ve PDC'si yerinde kalır.
-Boşalmış dünyanın chunk sistemi, Moonrise'ın kendi hızını beklemeden sıfır chunk tutucusuna kadar
-ilerletilir (ticket saati ileri alınır, bekleyen chunk görevleri çalıştırılır, 5 ms'de bir
-yoklanır); boşaltılmış ama tutucusu duran bir chunk aksi hâlde yeni veriden değil bellekten geri
-gelirdi. Bir eklenti chunk'ları yüklü tutarsa reset 10 saniye sonra hata verir.
+**Yerinde reset** (`reset`): yalnızca oyunun değiştirdiği yere dokunur. Şablondan yaratılan bir
+dünya şablonun değişmemiş chunk'larını paylaştığı için, saklanan chunk'lardan hangilerinin farklı
+olduğu referans karşılaştırmasıyla, hiçbir şey açılmadan bulunur (`ShulkWorld#differentChunks`).
+
+- **Yüklü ve değişmiş chunk'lar** (kaydedilmemiş değişiklik, saklanan verisi farklı ya da içinde
+  entity var): `ChunkRestorer` şablon chunk'ını yalnızca parse eder (section'lar ve blok entity
+  tag'leri; `ProtoChunk`'a okumaz, o POI ve ışık kaydederdi), farklı her bloğu `ServerLevel#setBlock`
+  ile geri koyar (ışık, POI ve istemciler normal bir blok değişikliği gibi güncellenir; drop ve komşu
+  güncellemesi yok), ardından şablonun blok entity'leri ve entity'leri yerine konur. Chunk ve
+  çevresi yüklü kalır, oyuncular yerinde kalır.
+- **Yüklü olmayan değişmiş chunk'lar** yalnızca bellekte değiştirilir (`copyChunkFrom`).
+- **Yedek yol:** değişmiş bir chunk sunucuda yarı yüklü tutuluyorsa (tutucusu var, tam yüklü
+  değil), ne geri yazılabilir ne güvenle değiştirilebilir. O zaman oyuncular ana dünyaya taşınır,
+  ticket'lar bırakılır, entity'ler kaldırılıp chunk'lar "kaydedildi" işaretlenerek (serileştirilmeden)
+  boşaltılır ve chunk sistemi, tick başına 2 ms bütçeyle, sıfır tutucuya kadar ilerletilir.
+
+Bir yüklü chunk'ı yüklü tutup çevresini değiştirmek mümkün değil: yüklü bir chunk'taki ticket,
+yaklaşık 13 chunk yarıçapındaki tutucuları canlı tutar ve tutucusu duran bir chunk yeni veriden değil
+bellekten geri gelir. Yerinde geri yazma bu yüzden boşaltma yerine seçildi.
 
 **Kendi loader'ını kaydeden eklentiler**, dünyalarını `onDisable` içinde boşaltmalı
 (`unload(world, true).join()`). Kapanışta eklentiler, dünyalar kaydedilmeden önce devre dışı
@@ -162,22 +174,23 @@ dönüştürülmeli.
 
 Ayrıntılar ve ham veriler: [BENCHMARKS.md](BENCHMARKS.md#islands-and-arenas-world-systems).
 Ryzen 5 2600, Windows 11, 2 GiB heap, `tools/world-bench`, 50 ada ve 20 arena reset'i, 2026-10-22'de
-Shulker ve Paper'da sırayla ikişer koşunun ortalaması:
+Shulker ve Paper'da ikişer koşunun ortalaması. Arena reset'i, arenanın çevresindeki 13 × 13 chunk
+(oyuncuların görüş alanı) yüklüyken ölçülüyor ve o alan tekrar yüklenene kadar sürüyor:
 
 | | Shulk World, havuzdan | Shulk World | Ortak dünya + yapıştırma (Paper) | Ada başına dünya (Paper) |
 |---|---|---|---|---|
-| Yeni ada, ana thread CPU | 3.0 ms | 45.6 ms | 16.1 ms | 57.9 ms |
-| Yeni ada, süre | 0.8 ms | 79 ms | 552 ms | 738 ms |
-| Yeni ada, en kötü tick | 80 ms | 175 ms | 896 ms | 1194 ms |
-| Arena reset (Shulk: yerinde) | | 65 ms | 7.0 ms | 174 ms |
-| Arena reset, ana thread CPU | | 10.7 ms | 7.6 ms | 43.6 ms |
-| Ada başına disk | | 6.6 KiB | 31.3 KiB | 4390 KiB |
-| Taşınacak veri | | 6.6 KiB | 21.3 KiB | 4390 KiB |
-| Taşınan adanın yüklenmesi | | 63 ms | — | 79 ms |
+| Yeni ada, ana thread CPU | 5.3 ms | 41.3 ms | 14.8 ms | 42.2 ms |
+| Yeni ada, süre | 0.7 ms | 62 ms | 512 ms | 211 ms |
+| Yeni ada, en kötü tick | 83 ms | 101 ms | 772 ms | 89 ms |
+| Arena reset (oyuncu görüş alanı yüklü) | | 5.4 ms | 5.4 ms | 2781 ms |
+| Arena reset, ana thread CPU | | 4.8 ms | 6.1 ms | 85.2 ms |
+| Ada başına disk | | 6.5 KiB | 31.3 KiB | 6688 KiB |
+| Taşınacak veri | | 6.5 KiB | 21.3 KiB | 6688 KiB |
+| Taşınan adanın yüklenmesi | | 53 ms | — | 55 ms |
 
-Havuzun bedeli arka planda ödeniyor: doldurmak dünya başına 41 ms ana thread tuttu (en fazla 10
+Havuzun bedeli arka planda ödeniyor: doldurmak dünya başına 31 ms ana thread tuttu (en fazla 10
 tick'te bir dünya, ortalama tick 40 ms'nin altındayken); 50 boş havuz dünyası boşta tick başına
-0.8–1.9 ms ekliyor. Paper'ın klasör sayılarında bir koşudaki takılmalar var (BENCHMARKS.md, not 1).
+yaklaşık 1 ms ekliyor. Paper'ın iki koşusu da klasör dünyalarını boşaltırken 38–56 s takıldı.
 
 Bu sonuçlara giden yolda yapılan düzeltmeler:
 

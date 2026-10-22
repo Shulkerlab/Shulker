@@ -27,7 +27,7 @@ SUBJECTS = [
 PANELS = [
     ("skyblock_create", "main_cpu_ms_per_op", "New island: main-thread time", "CPU per island from a template, lower is better", "ms", 1),
     ("skyblock_create", "worst_tick_gap_ms", "New island: worst tick", "longest tick while 50 islands are created, lower is better", "ms", 0),
-    ("minigame_reset", "wall_ms_per_op", "Arena reset", "until playable again after a game; a Shulk World in place, lower is better", "ms", 0),
+    ("minigame_reset", "wall_ms_per_op", "Arena reset", "after a game, until the players' view is loaded again, lower is better", "ms", 0),
     ("skyblock", "disk_kib_per_island", "Disk space per island", "after saving, lower is better", "KiB", 1),
     ("cross_server", "transfer_kib", "Moving an island to another server", "data to copy, lower is better", "KiB", 1),
     ("cross_server_load", "wall_ms_per_op", "Loading a moved island", "time until it is playable, lower is better", "ms", 0),
