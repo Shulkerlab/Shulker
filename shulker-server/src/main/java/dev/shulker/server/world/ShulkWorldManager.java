@@ -422,7 +422,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
             if (root != null && Files.isDirectory(root)) {
                 try (Stream<Path> folders = Files.list(root)) {
                     for (Path folder : folders.toList()) {
-                        deleteRecursively(folder);
+                        FolderTrash.discard(folder);
                     }
                 }
             }
@@ -950,11 +950,8 @@ public final class ShulkWorldManager implements ShulkWorlds {
         }
     }
 
+    /** Gets rid of a world folder without a burst of disk work: see {@link FolderTrash}. */
     private static void deleteQuietly(final Path folder) {
-        try {
-            deleteRecursively(folder);
-        } catch (IOException e) {
-            LOGGER.warn("Could not delete {}", folder, e);
-        }
+        FolderTrash.discard(folder);
     }
 }

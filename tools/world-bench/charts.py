@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Draws the README world-systems chart from WorldBench results.
 
-    tools/world-bench/charts.py <results.csv>... <output.svg>
+    tools/world-bench/charts.py [--exclude-run <run>]... <results.csv>... <output.svg>
 
-Each CSV holds WorldBench rows (server,approach,scenario,metric,value,unit); several runs of
-the same row are averaged. The chart compares a Shulk World on Shulker with the two usual ways
-of running islands and arenas on Paper: pasting into one shared world, and one world folder
-per island.
+Each CSV holds WorldBench rows (server,approach,scenario,metric,value,unit[,run]); several runs
+of the same row are averaged, except runs named with --exclude-run. The chart compares Shulk
+Worlds on Shulker, created directly and taken from the world pool, with the two usual ways of
+running islands and arenas on Paper: pasting into one shared world, and one world folder per
+island.
 """
 import collections
 import csv
@@ -16,8 +17,9 @@ FONT = "font-family=\"-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif\""
 TEXT, MUTED = "#768390", "#8b949e"
 ACCENT, OTHER = "#8b5cf6", "#9aa1ab"
 
-# (server, approach) -> label; the first one is Shulker's.
+# (server, approach) -> label; Shulker's are highlighted.
 SUBJECTS = [
+    (("shulker", "shulk_pool"), "Shulk World, pooled (Shulker)"),
     (("shulker", "shulk"), "Shulk World (Shulker)"),
     (("paper", "paste"), "Shared world + paste (Paper)"),
     (("paper", "folder"), "World per island (Paper)"),
@@ -32,19 +34,24 @@ PANELS = [
 ]
 
 
-def load(paths):
+def load(paths, excluded):
     values = collections.defaultdict(list)
     for path in paths:
         with open(path, newline="") as f:
             for row in csv.DictReader(f):
-                values[(row["server"], row["approach"], row["scenario"], row["metric"])].append(float(row["value"]))
+                if row.get("run") in excluded:
+                    continue
+                approach, scenario = row["approach"], row["scenario"]
+                if scenario == "skyblock_create_pooled":  # an island taken from the world pool
+                    approach, scenario = "shulk_pool", "skyblock_create"
+                values[(row["server"], approach, scenario, row["metric"])].append(float(row["value"]))
     return {key: sum(v) / len(v) for key, v in values.items()}
 
 
 def panel(out, x, y, width, title, subtitle, rows, unit, decimals):
     out.append(f'<text x="{x}" y="{y + 16}" {FONT} font-size="15" font-weight="600" fill="{TEXT}">{title}</text>')
     out.append(f'<text x="{x}" y="{y + 34}" {FONT} font-size="12" fill="{MUTED}">{subtitle}</text>')
-    label_w = 210
+    label_w = 220
     bar_x = x + label_w
     bar_max = width - label_w - 80
     top = max(v for _, v, _ in rows) or 1
@@ -61,21 +68,26 @@ def panel(out, x, y, width, title, subtitle, rows, unit, decimals):
 
 
 def main():
-    data = load(sys.argv[1:-1])
+    args = sys.argv[1:]
+    excluded = set()
+    while args and args[0] == "--exclude-run":
+        excluded.add(args[1])
+        args = args[2:]
+    data = load(args[:-1], excluded)
     body, heights = [], []
     for i, (scenario, metric, title, subtitle, unit, decimals) in enumerate(PANELS):
         rows = []
         for n, ((server, approach), label) in enumerate(SUBJECTS):
             key = (server, approach, scenario, metric)
             if key in data:
-                rows.append((label, data[key], n == 0))
+                rows.append((label, data[key], server == "shulker"))
         if not rows:
             continue
         x = (i % 2) * 500
-        y = (i // 2) * 150
+        y = (i // 2) * 175
         heights.append(y + panel(body, x, y, 460, title, subtitle, rows, unit, decimals))
     height = max(heights) + 10
-    with open(sys.argv[-1], "w") as f:
+    with open(args[-1], "w") as f:
         f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="960" height="{height}" viewBox="0 0 960 {height}" role="img" '
                 f'aria-label="Islands and arenas: Shulk Worlds on Shulker against pasting and world folders on Paper">\n'
                 + "\n".join(body) + "\n</svg>\n")

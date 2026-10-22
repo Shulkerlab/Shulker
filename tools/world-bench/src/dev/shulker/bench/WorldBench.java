@@ -336,6 +336,7 @@ public final class WorldBench extends JavaPlugin implements Listener {
         }
 
         void start() {
+            this.last = 0; // a gap that began before the measurement (a GC, the previous step) is not its own
             this.window = System.nanoTime();
             this.busy = 0;
             this.worst = 0;
