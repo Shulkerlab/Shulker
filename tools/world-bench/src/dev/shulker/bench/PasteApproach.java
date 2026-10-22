@@ -88,7 +88,8 @@ final class PasteApproach extends Scenario {
         final int bottom = minY;
         final int top = maxY + 8; // room players built in
         final int ox = x(0);
-        return this.measure("minigame_reset", resets, () -> WorldBench.sequence(resets, r -> this.bench.sync(() -> {
+        return this.bench.sync(() -> this.bench.occupy(this.world, ox, 256)).thenCompose(f -> f)
+            .thenCompose(v -> this.measure("minigame_reset", resets, () -> WorldBench.sequence(resets, r -> this.bench.sync(() -> {
             // a played arena: some blocks broken and placed
             for (int i = 0; i < 300; i++) {
                 this.world.getBlockAt(ox - 10 + i % 20, 65 + i / 100, 256 - 10 + (i / 20) % 20).setType(i % 3 == 0 ? Material.AIR : Material.COBBLESTONE, false);
@@ -102,7 +103,7 @@ final class PasteApproach extends Scenario {
                 }
             }
             return null;
-        })));
+        }).thenCompose(x -> this.bench.sync(() -> this.bench.occupy(this.world, ox, 256)).thenCompose(f -> f)))));
     }
 
     private static long key(final int x, final int y, final int z) {

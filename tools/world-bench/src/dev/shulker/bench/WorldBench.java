@@ -172,6 +172,23 @@ public final class WorldBench extends JavaPlugin implements Listener {
         }
     }
 
+    /** Chunks around an arena that its players keep loaded: a 13 x 13 view. */
+    static final int ARENA_VIEW_RADIUS = 6;
+
+    /**
+     * Loads the chunks the players of an arena would see and holds them with this plugin's
+     * tickets, as players standing in it would. Main thread; completes once all are loaded.
+     */
+    CompletableFuture<Void> occupy(final World world, final int originX, final int originZ) {
+        final List<CompletableFuture<?>> loads = new ArrayList<>();
+        for (int cx = (originX >> 4) - ARENA_VIEW_RADIUS; cx <= (originX >> 4) + ARENA_VIEW_RADIUS; cx++) {
+            for (int cz = (originZ >> 4) - ARENA_VIEW_RADIUS; cz <= (originZ >> 4) + ARENA_VIEW_RADIUS; cz++) {
+                loads.add(world.getChunkAtAsync(cx, cz).thenAccept(chunk -> chunk.addPluginChunkTicket(this)));
+            }
+        }
+        return CompletableFuture.allOf(loads.toArray(CompletableFuture[]::new));
+    }
+
     World createVoidWorld(final String name) {
         final World world = new WorldCreator(name).generator(VOID).createWorld();
         world.setAutoSave(false);

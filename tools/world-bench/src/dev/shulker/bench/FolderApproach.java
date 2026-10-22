@@ -98,14 +98,17 @@ final class FolderApproach extends Scenario {
                 return null;
             }))
             .thenCompose(v -> this.bench.sync(() -> this.worlds.add(this.load("wb_arena"))))
-            // An arena reset: drop the played world, copy the template back, load it.
+            .thenCompose(v -> this.bench.sync(() -> this.bench.occupy(this.worlds.getLast(), 0, 0)).thenCompose(f -> f))
+            // An arena reset: drop the played world, copy the template back, load it, until the
+            // players' view around it is loaded again.
             .thenCompose(v -> this.measure("minigame_reset", resets, () -> WorldBench.sequence(resets, r -> this.bench.sync(() -> {
                 Bukkit.unloadWorld(this.worlds.removeFirst(), false);
                 return null;
             }).thenCompose(x -> this.bench.async(() -> {
                 this.copyTemplate("wb_arena");
                 return null;
-            })).thenCompose(x -> this.bench.sync(() -> this.worlds.add(this.load("wb_arena")))))))
+            })).thenCompose(x -> this.bench.sync(() -> this.worlds.add(this.load("wb_arena"))))
+                .thenCompose(x -> this.bench.sync(() -> this.bench.occupy(this.worlds.getLast(), 0, 0)).thenCompose(f -> f)))))
             .thenCompose(v -> this.bench.sync(() -> {
                 this.worlds.forEach(world -> Bukkit.unloadWorld(world, false));
                 this.worlds.clear();

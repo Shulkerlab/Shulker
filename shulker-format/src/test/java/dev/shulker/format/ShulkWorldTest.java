@@ -156,6 +156,43 @@ class ShulkWorldTest {
     }
 
     @Test
+    void differentChunksFindsWhatACopyChanged() {
+        final ShulkWorld template = island();
+        final ShulkWorld played = template.copy();
+        assertTrue(played.differentChunks(template, RegionKind.CHUNK).isEmpty());
+
+        played.write(RegionKind.CHUNK, 0, 0, chunk(0, 3000), 1, 6); // same bytes, new entry
+        played.delete(RegionKind.CHUNK, 1, 1);
+        played.write(RegionKind.CHUNK, 7, 7, chunk(9, 100), 1, 6); // not in the template
+        played.write(RegionKind.ENTITIES, 0, 0, chunk(5, 50), 1, 6);
+        final Set<Long> changed = played.differentChunks(template, RegionKind.CHUNK);
+        assertEquals(3, changed.size());
+        assertEquals(Set.of(changed), Set.of(template.differentChunks(played, RegionKind.CHUNK)), "symmetric");
+        assertEquals(1, played.differentChunks(template, RegionKind.ENTITIES).size());
+        assertTrue(played.differentChunks(template, RegionKind.POI).isEmpty());
+
+        for (long key : changed) {
+            played.copyChunkFrom(template, RegionKind.CHUNK, ShulkWorld.keyX(key), ShulkWorld.keyZ(key));
+        }
+        played.copyChunkFrom(template, RegionKind.ENTITIES, 0, 0);
+        for (RegionKind kind : RegionKind.values()) {
+            assertTrue(played.differentChunks(template, kind).isEmpty(), kind.name());
+        }
+        assertArrayEquals(chunk(1 * 31 + 1, 3000), played.read(RegionKind.CHUNK, 1, 1));
+        assertFalse(played.has(RegionKind.CHUNK, 7, 7));
+    }
+
+    @Test
+    void copyChunkFromCountsOnlyRealChanges() {
+        final ShulkWorld template = island();
+        final ShulkWorld copy = template.copy();
+        final long before = copy.modifications();
+        copy.copyChunkFrom(template, RegionKind.CHUNK, 0, 0); // already the same entry
+        copy.copyChunkFrom(template, RegionKind.CHUNK, 50, 50); // absent in both
+        assertEquals(before, copy.modifications());
+    }
+
+    @Test
     void modificationsTrackChanges() {
         final ShulkWorld world = new ShulkWorld();
         final long start = world.modifications();

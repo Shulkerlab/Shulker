@@ -218,6 +218,39 @@ public final class ShulkWorld {
         return copy;
     }
 
+    /**
+     * Positions, as keys for {@link #keyX} and {@link #keyZ}, where this world and {@code other}
+     * do not hold the same chunk of the kind: present in only one, or stored differently. Worlds
+     * copied from one another share their unchanged chunks, so this compares references and
+     * decompresses nothing; a chunk rewritten with identical content still counts as different.
+     */
+    public Set<Long> differentChunks(final ShulkWorld other, final RegionKind kind) {
+        final Map<Long, Stored> mine = this.chunks.get(kind);
+        final Map<Long, Stored> theirs = other.chunks.get(kind);
+        final Set<Long> different = new java.util.HashSet<>();
+        for (Map.Entry<Long, Stored> entry : mine.entrySet()) {
+            if (theirs.get(entry.getKey()) != entry.getValue()) {
+                different.add(entry.getKey());
+            }
+        }
+        for (Long key : theirs.keySet()) {
+            if (!mine.containsKey(key)) {
+                different.add(key);
+            }
+        }
+        return different;
+    }
+
+    /** Makes this world hold exactly {@code other}'s chunk of the kind at a position: the same stored data, or none. */
+    public void copyChunkFrom(final ShulkWorld other, final RegionKind kind, final int chunkX, final int chunkZ) {
+        final long key = key(chunkX, chunkZ);
+        final Stored stored = other.chunks.get(kind).get(key);
+        final Stored previous = stored == null ? this.chunks.get(kind).remove(key) : this.chunks.get(kind).put(key, stored);
+        if (previous != stored) {
+            this.modifications.incrementAndGet();
+        }
+    }
+
     /** Increases on every change; compare two readings to see whether the world changed. */
     public long modifications() {
         return this.modifications.get();

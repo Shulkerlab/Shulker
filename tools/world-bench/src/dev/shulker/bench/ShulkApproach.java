@@ -116,17 +116,21 @@ final class ShulkApproach extends Scenario {
                     .thenCompose(world -> this.bench.sync(() -> api().unload(world, false)).thenCompose(f -> f)))))
             .thenCompose(v -> this.bench.sync(() -> api().create("wbarena", this.template, null, ShulkWorldProperties.readOnlyWorld())).thenCompose(f -> f))
             .thenAccept(this.worlds::add)
-            // An arena reset the old way: drop the played world, create it again from the template.
+            .thenCompose(v -> this.bench.sync(() -> this.bench.occupy(this.worlds.getLast(), 0, 0)).thenCompose(f -> f))
+            // An arena reset the old way: drop the played world, create it again from the template,
+            // until the players' view around it is loaded again.
             .thenCompose(v -> this.measure("minigame_recreate", resets, () -> WorldBench.sequence(resets, r ->
                 this.bench.sync(() -> api().unload(this.worlds.removeFirst(), false)).thenCompose(f -> f)
                     .thenCompose(x -> this.bench.sync(() -> api().create("wbarena", this.template, null, ShulkWorldProperties.readOnlyWorld())).thenCompose(f -> f))
-                    .thenAccept(this.worlds::add))))
+                    .thenAccept(this.worlds::add)
+                    .thenCompose(x -> this.bench.sync(() -> this.bench.occupy(this.worlds.getLast(), 0, 0)).thenCompose(f -> f)))))
             // An arena reset in place: play (break and place blocks), then put the template's chunks back.
             .thenCompose(v -> this.measure("minigame_reset", resets, () -> WorldBench.sequence(resets, r ->
                 this.bench.sync(() -> {
                     this.play(this.worlds.getFirst());
                     return api().reset(this.worlds.getFirst(), this.template);
-                }).thenCompose(f -> f))))
+                }).thenCompose(f -> f)
+                    .thenCompose(x -> this.bench.sync(() -> this.bench.occupy(this.worlds.getFirst(), 0, 0)).thenCompose(f -> f)))))
             .thenCompose(v -> this.bench.sync(() -> {
                 final World arena = this.worlds.getFirst();
                 int leftovers = 0; // blocks the last game placed that the reset should have removed

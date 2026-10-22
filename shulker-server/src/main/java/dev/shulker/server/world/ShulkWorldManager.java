@@ -227,9 +227,32 @@ public final class ShulkWorldManager implements ShulkWorlds {
 
     // ---- templates -------------------------------------------------------------------------
 
+    /** A template read before, with the bytes it was read from. */
+    private record CachedTemplate(byte[] bytes, Template template) {
+    }
+
+    /** Templates by loader and name; see {@link #readTemplate}. */
+    private final Map<ShulkWorldLoader, Map<String, java.lang.ref.SoftReference<CachedTemplate>>> templates =
+        java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    /**
+     * Reads a template. Reading the same unchanged template again returns the same instance: a
+     * world created from it shares its chunks, so a {@linkplain #reset reset} to it only has to
+     * replace what a game changed.
+     */
     @Override
     public CompletableFuture<ShulkWorldTemplate> readTemplate(final ShulkWorldLoader loader, final String name) {
-        return loader.read(name).thenApplyAsync(bytes -> new Template(name, parse(bytes)), this.io);
+        return loader.read(name).thenApplyAsync(bytes -> {
+            final Map<String, java.lang.ref.SoftReference<CachedTemplate>> byName = this.templates.computeIfAbsent(loader, key -> new ConcurrentHashMap<>());
+            final java.lang.ref.SoftReference<CachedTemplate> reference = byName.get(name);
+            final CachedTemplate cached = reference == null ? null : reference.get();
+            if (cached != null && java.util.Arrays.equals(cached.bytes(), bytes)) {
+                return cached.template();
+            }
+            final Template template = new Template(name, parse(bytes));
+            byName.put(name, new java.lang.ref.SoftReference<>(new CachedTemplate(bytes, template)));
+            return template;
+        }, this.io);
     }
 
     @Override
@@ -661,14 +684,22 @@ public final class ShulkWorldManager implements ShulkWorlds {
     /** How often, and how many times, a reset checks whether the world's chunks are gone. */
     private static final long RESET_POLL_MILLIS = 5;
     private static final int RESET_TIMEOUT_POLLS = 2000;
-    /** Unload passes per check; each unloads a fraction of what is queued. */
-    private static final int RESET_UNLOAD_PASSES = 16;
+    /** Main-thread time one check may spend driving the chunk system forward. */
+    private static final long RESET_BUDGET_NANOS = 2_000_000L;
 
+    /**
+     * Puts the template's chunks back. Only what differs from the template is replaced: worlds made
+     * from a template share its unchanged chunks, so comparing references finds what a game changed
+     * without decompressing anything. Loaded chunks are thrown away, not saved: their entities are
+     * removed and they are marked saved first, so the chunk system neither serializes nor writes
+     * them while it unloads them.
+     */
     @Override
     public CompletableFuture<Void> reset(final World world, final ShulkWorldTemplate template) {
         final Loaded loaded = this.loaded(world);
         final ShulkWorld chunks = ((Template) template).world();
         final long start = System.nanoTime();
+        final int[] counts = new int[2]; // replaced chunk positions, loaded chunks thrown away
         return loaded.lastSave.handle((ignored, error) -> null).thenCompose(ignored -> onMain(() -> {
             final ShulkWorldStorage.Registered registered = requireRegistered(loaded);
             final World spawn = Bukkit.getWorlds().getFirst();
@@ -682,33 +713,41 @@ public final class ShulkWorldManager implements ShulkWorlds {
             for (Plugin plugin : List.copyOf(world.getPluginChunkTickets().keySet())) {
                 world.removePluginChunkTickets(plugin);
             }
+            final ServerLevel level = ((CraftWorld) world).getHandle();
+            for (org.bukkit.entity.Entity entity : world.getEntities()) {
+                if (!(entity instanceof Player)) {
+                    entity.remove(); // nothing to save in the entity chunks
+                }
+            }
+            for (org.bukkit.Chunk chunk : world.getLoadedChunks()) {
+                final net.minecraft.world.level.chunk.LevelChunk handle = level.getChunkSource().getChunkNow(chunk.getX(), chunk.getZ());
+                if (handle != null) {
+                    handle.tryMarkSaved(); // nothing to serialize when it unloads
+                }
+                counts[1]++;
+            }
             drainChunks(world);
             return null;
         })).thenCompose(ignored -> this.awaitNoChunks(world, 0)).thenCompose(ignored -> onMain(() -> {
             final ShulkWorldStorage.Registered registered = requireRegistered(loaded);
             final ServerLevel level = ((CraftWorld) world).getHandle();
             ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(level); // writes of the old chunks are done
-            final ShulkWorld old = loaded.data;
-            final ShulkWorld fresh = chunks.copy();
-            for (String path : fresh.filePaths()) {
-                fresh.removeFile(path);
+            final ShulkWorld data = loaded.data;
+            final java.util.Set<Long> positions = new java.util.HashSet<>();
+            for (dev.shulker.format.RegionKind kind : dev.shulker.format.RegionKind.values()) {
+                positions.addAll(data.differentChunks(chunks, kind));
             }
-            for (String path : old.filePaths()) { // the world keeps its own settings, UUID and data
-                final byte[] contents = old.file(path);
-                if (contents != null) {
-                    fresh.putFile(path, contents);
+            for (long position : positions) {
+                for (dev.shulker.format.RegionKind kind : dev.shulker.format.RegionKind.values()) {
+                    data.copyChunkFrom(chunks, kind, ShulkWorld.keyX(position), ShulkWorld.keyZ(position));
                 }
             }
-            for (Map.Entry<String, String> property : old.properties().entrySet()) {
-                fresh.setProperty(property.getKey(), property.getValue());
-            }
-            loaded.data = fresh;
-            registered.world = fresh;
+            counts[0] = positions.size();
             registered.discardWrites = false;
             loaded.savedModifications = -1; // the next save writes the reset world
             new ShulkWorldResetEvent(world, template.name()).callEvent();
-            LOGGER.info("Shulk World {} reset to {} ({} chunks) in {} ms", loaded.name, template.name(), fresh.chunkCount(dev.shulker.format.RegionKind.CHUNK),
-                String.format(Locale.ROOT, "%.1f", (System.nanoTime() - start) / 1e6));
+            LOGGER.info("Shulk World {} reset to {}: {} chunk positions replaced, {} loaded chunks dropped, in {} ms", loaded.name, template.name(),
+                counts[0], counts[1], String.format(Locale.ROOT, "%.1f", (System.nanoTime() - start) / 1e6));
             return (Void) null;
         })).whenComplete((ignored, error) -> {
             final ShulkWorldStorage.Registered registered = loaded.registered;
@@ -721,8 +760,8 @@ public final class ShulkWorldManager implements ShulkWorlds {
     /**
      * Drives the chunk system of an emptied world until it holds no chunks at all. Loaded chunks
      * are not enough: an unloaded chunk keeps its holder for a while and comes back from memory,
-     * not from storage. Unloads finish asynchronously (their chunk and entity data is handed to the
-     * I/O threads), so this polls every few milliseconds rather than once per tick.
+     * not from storage. Unloads finish asynchronously, so this checks every few milliseconds, each
+     * time within {@link #RESET_BUDGET_NANOS} of main-thread time.
      */
     private CompletableFuture<Void> awaitNoChunks(final World world, final int polls) {
         return onMain(() -> drainChunks(world)).thenCompose(count -> {
@@ -742,18 +781,20 @@ public final class ShulkWorldManager implements ShulkWorlds {
      * Nothing keeps an emptied world except tickets that expire on their own: chunk load tickets
      * linger for a few ticks, refused unloads get a 5 s cooldown, and the chunk system unloads a
      * fraction of its queue per tick. The world is being thrown away, so this runs its ticket clock
-     * and unloads forward. Returns how many chunk holders are left.
+     * and unloads forward, stopping when its time budget is used. Returns how many chunk holders
+     * are left.
      */
     private static int drainChunks(final World world) {
+        final long deadline = System.nanoTime() + RESET_BUDGET_NANOS;
         final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager holders = chunkHolders(world);
         final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkTaskScheduler scheduler =
             ((ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel) ((CraftWorld) world).getHandle()).moonrise$getChunkTaskScheduler();
-        for (int pass = 0; pass < RESET_UNLOAD_PASSES && holders.size() > 0; pass++) {
+        while (holders.size() > 0 && System.nanoTime() < deadline) {
             holders.removeAllTicketsFor(ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.UNLOAD_COOLDOWN,
                 ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager.MAX_TICKET_LEVEL, null);
             holders.tick();
             holders.processTicketUpdates();
-            for (int task = 0; task < 4096 && scheduler.executeMainThreadTask(); task++) {
+            while (System.nanoTime() < deadline && scheduler.executeMainThreadTask()) {
                 // demote the chunks whose tickets went away, so they reach the unload queue
             }
             holders.processUnloads();
