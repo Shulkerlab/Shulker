@@ -688,19 +688,99 @@ public final class ShulkWorldManager implements ShulkWorlds {
     private static final long RESET_BUDGET_NANOS = 2_000_000L;
 
     /**
-     * Puts the template's chunks back. Only what differs from the template is replaced: worlds made
-     * from a template share its unchanged chunks, so comparing references finds what a game changed
-     * without decompressing anything. Loaded chunks are thrown away, not saved: their entities are
-     * removed and they are marked saved first, so the chunk system neither serializes nor writes
-     * them while it unloads them.
+     * Puts the template's chunks back, touching only what a game changed. Worlds made from a
+     * template share its unchanged chunks, so comparing references finds the stored chunks that
+     * differ without decompressing anything.
+     *
+     * <p>In place, the usual case: loaded chunks that changed (unsaved changes, a stored chunk that
+     * differs, or entities in them) get the template's blocks, block entities and entities back the
+     * way a paste would, and stay loaded with everything around them; stored chunks that are not
+     * loaded are swapped in memory. Players stay where they are.
+     *
+     * <p>By unloading, when a changed chunk is held half-loaded by the chunk system, where it can
+     * neither be restored nor safely swapped: see {@link #resetByUnloading}.
      */
     @Override
     public CompletableFuture<Void> reset(final World world, final ShulkWorldTemplate template) {
         final Loaded loaded = this.loaded(world);
         final ShulkWorld chunks = ((Template) template).world();
         final long start = System.nanoTime();
+        return loaded.lastSave.handle((ignored, error) -> null).thenCompose(ignored -> onMain(() -> this.resetInPlace(loaded, world, template, chunks, start)))
+            .thenCompose(done -> done ? CompletableFuture.completedFuture(null) : this.resetByUnloading(loaded, world, template, chunks, start));
+    }
+
+    /** The in-place reset; returns false, having changed nothing, when it has to unload instead. */
+    private boolean resetInPlace(final Loaded loaded, final World world, final ShulkWorldTemplate template, final ShulkWorld chunks, final long start) {
+        requireRegistered(loaded);
+        final ServerLevel level = ((CraftWorld) world).getHandle();
+        final ShulkWorld data = loaded.data;
+        final java.util.Set<Long> stored = new java.util.HashSet<>();
+        for (dev.shulker.format.RegionKind kind : dev.shulker.format.RegionKind.values()) {
+            stored.addAll(data.differentChunks(chunks, kind));
+        }
+        final List<net.minecraft.world.level.chunk.LevelChunk> restore = new java.util.ArrayList<>();
+        final java.util.Set<Long> restoring = new java.util.HashSet<>();
+        for (org.bukkit.Chunk chunk : world.getLoadedChunks()) {
+            final net.minecraft.world.level.chunk.LevelChunk handle = level.getChunkSource().getChunkNow(chunk.getX(), chunk.getZ());
+            final long position = ShulkWorld.key(chunk.getX(), chunk.getZ());
+            if (handle != null && (handle.isUnsaved() || stored.contains(position) || hasEntities(chunk))) {
+                restore.add(handle);
+                restoring.add(position);
+            }
+        }
+        final ca.spottedleaf.moonrise.patches.chunk_system.scheduling.ChunkHolderManager holders = chunkHolders(world);
+        for (long position : stored) {
+            if (!restoring.contains(position)
+                && holders.getChunkHolder(ca.spottedleaf.moonrise.common.util.CoordinateUtils.getChunkKey(ShulkWorld.keyX(position), ShulkWorld.keyZ(position))) != null) {
+                return false; // held half-loaded: its old data may come back from memory
+            }
+        }
+        ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(level); // no older write lands after the swap
+        int blocks = 0;
+        try {
+            for (net.minecraft.world.level.chunk.LevelChunk chunk : restore) {
+                final int x = chunk.getPos().x();
+                final int z = chunk.getPos().z();
+                blocks += ChunkRestorer.restore(level, chunk, chunks.read(dev.shulker.format.RegionKind.CHUNK, x, z), chunks.read(dev.shulker.format.RegionKind.ENTITIES, x, z));
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        stored.addAll(restoring);
+        for (long position : stored) {
+            for (dev.shulker.format.RegionKind kind : dev.shulker.format.RegionKind.values()) {
+                data.copyChunkFrom(chunks, kind, ShulkWorld.keyX(position), ShulkWorld.keyZ(position));
+            }
+        }
+        for (net.minecraft.world.level.chunk.LevelChunk chunk : restore) {
+            chunk.tryMarkSaved(); // it matches the stored template chunk again
+        }
+        loaded.savedModifications = -1;
+        new ShulkWorldResetEvent(world, template.name()).callEvent();
+        LOGGER.info("Shulk World {} reset to {} in place: {} loaded chunks restored ({} blocks), {} stored chunks swapped, in {} ms", loaded.name,
+            template.name(), restore.size(), blocks, stored.size() - restore.size(), String.format(Locale.ROOT, "%.1f", (System.nanoTime() - start) / 1e6));
+        return true;
+    }
+
+    private static boolean hasEntities(final org.bukkit.Chunk chunk) {
+        for (org.bukkit.entity.Entity entity : chunk.getEntities()) {
+            if (!(entity instanceof Player)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The reset for a world with a changed chunk held half-loaded: everything is unloaded and the
+     * stored chunks swapped. Loaded chunks are thrown away, not saved: their entities are removed
+     * and they are marked saved first, so the chunk system neither serializes nor writes them.
+     * Players are moved out first.
+     */
+    private CompletableFuture<Void> resetByUnloading(final Loaded loaded, final World world, final ShulkWorldTemplate template,
+                                                     final ShulkWorld chunks, final long start) {
         final int[] counts = new int[2]; // replaced chunk positions, loaded chunks thrown away
-        return loaded.lastSave.handle((ignored, error) -> null).thenCompose(ignored -> onMain(() -> {
+        return onMain(() -> {
             final ShulkWorldStorage.Registered registered = requireRegistered(loaded);
             final World spawn = Bukkit.getWorlds().getFirst();
             for (Player player : List.copyOf(world.getPlayers())) {
@@ -728,7 +808,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
             }
             drainChunks(world);
             return null;
-        })).thenCompose(ignored -> this.awaitNoChunks(world, 0)).thenCompose(ignored -> onMain(() -> {
+        }).thenCompose(ignored -> this.awaitNoChunks(world, 0)).thenCompose(ignored -> onMain(() -> {
             final ShulkWorldStorage.Registered registered = requireRegistered(loaded);
             final ServerLevel level = ((CraftWorld) world).getHandle();
             ca.spottedleaf.moonrise.patches.chunk_system.io.MoonriseRegionFileIO.flush(level); // writes of the old chunks are done
@@ -746,7 +826,7 @@ public final class ShulkWorldManager implements ShulkWorlds {
             registered.discardWrites = false;
             loaded.savedModifications = -1; // the next save writes the reset world
             new ShulkWorldResetEvent(world, template.name()).callEvent();
-            LOGGER.info("Shulk World {} reset to {}: {} chunk positions replaced, {} loaded chunks dropped, in {} ms", loaded.name, template.name(),
+            LOGGER.info("Shulk World {} reset to {} by unloading: {} chunk positions replaced, {} loaded chunks dropped, in {} ms", loaded.name, template.name(),
                 counts[0], counts[1], String.format(Locale.ROOT, "%.1f", (System.nanoTime() - start) / 1e6));
             return (Void) null;
         })).whenComplete((ignored, error) -> {

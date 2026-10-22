@@ -75,7 +75,8 @@ public final class ShulkWorld {
         }
     }
 
-    private static long key(final int chunkX, final int chunkZ) {
+    /** The key of a chunk position, as used by {@link #chunkKeys} and {@link #differentChunks}. */
+    public static long key(final int chunkX, final int chunkZ) {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
